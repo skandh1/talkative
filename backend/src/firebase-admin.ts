@@ -7,7 +7,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 
 const serviceAccountPath = path.join(__dirname, 'serviceAccountKey.json')
 let adminApp: App;
-
+``
 if (getApps().length === 0) {
   adminApp = initializeApp({
     credential: cert(serviceAccountPath)
