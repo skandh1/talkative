@@ -5,6 +5,7 @@ import { connectDB } from './config/db';
 import dotenv from 'dotenv';
 
 import userRoutes from './routes/userRoutes';
+import authRoutes from './routes/authRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -56,5 +57,5 @@ app.get('/api/protected', authenticate, (req, res) => {
   });
 });
 
-
+app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
