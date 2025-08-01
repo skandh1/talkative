@@ -1,5 +1,4 @@
-import { useEffect } from "react"
-import { Moon, Sun, Mic, Globe, Users, Zap, Star, Play } from "lucide-react"
+import { Mic, Globe, Users, Zap, Star, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import GoogleLoginButton from '../components/GoogleLoginButton';
 import { useAuth } from '../contexts/AuthContext';

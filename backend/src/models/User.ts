@@ -1,5 +1,6 @@
 // models/User.ts
 import mongoose, { Document, Schema, Model } from "mongoose";
+import "./Club"; 
 
 export type Gender = "male" | "female" | "other" | "prefer_not_to_say";
 export type ProfileStatus = "active" | "inactive" | "banned" | "deleted";

@@ -3,11 +3,13 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/themeContext';
 
+
 // Import your NEW layout component
 import ProtectedLayout from './components/layout/ProtectedLayout';
 import Navbar from './components/Navbar';
 
 // Pages
+
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Home = lazy(() => import('./pages/Home'));
@@ -35,6 +37,7 @@ const App: React.FC = () => {
                   {/* Use the new ProtectedLayout for the nested routes */}
                   <Route element={<ProtectedLayout />}>
                     <Route path="dashboard" element={<Dashboard />} />
+                    <Route path="profile" element={<Profile />} />
                     <Route path="home" element={<Home />} />
                     <Route path="profile" element={<Profile />} />
                     <Route path="clubs" element={<Clubs />} />

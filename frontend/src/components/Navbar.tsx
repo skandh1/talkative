@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, Coins, User } from 'lucide-react';
 import ThemeToggleButton from './themeToggleButton';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +29,10 @@ const Navbar: React.FC = () => {
     } catch (error) {
       console.error('Logout error:', error);
     }
+  };
+
+  const handelProfileButtonClick = () => {
+    navigate('/profile');
   };
 
   return (
@@ -75,10 +79,10 @@ const Navbar: React.FC = () => {
                 </span>
               </button>
 
-              <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 rounded-full px-3 py-2">
+              <button className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 rounded-full px-3 py-2" onClick={handelProfileButtonClick}>
                 <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Me</span>
-              </div>
+              </button>
 
               <button
               onClick={handleLogout}

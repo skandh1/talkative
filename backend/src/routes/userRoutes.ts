@@ -11,12 +11,12 @@ import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
 
+router.use(authenticate);
 // Public routes
 router.post('/', createUser);
 router.get('/active', getActiveUsers);
 
 // Protected routes (require authentication)
-router.use(authenticate);
 
 router.get('/:id', getUserById);
 router.put('/:id', updateUser);
