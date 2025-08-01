@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import { Moon, Sun, Mic, Globe, Users, Zap, Star, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import GoogleLoginButton from '../components/GoogleLoginButton';
@@ -6,23 +6,23 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 export default function LandingPage() {
-  const [darkMode, setDarkMode] = useState(false)
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode)
-    document.documentElement.classList.toggle("dark")
-  }
 
-  useEffect(() => {
-    if (currentUser) {
-      navigate('/dashboard');
-    }
-  }, [currentUser, navigate]);
+  // useEffect(() => {
+  //   if (currentUser) {
+  //     navigate('/dashboard');
+  //   }
+  // }, [currentUser, navigate]);
+
+  const handleExploreClick = () => {
+    // Navigate to your desired page after login, e.g., '/explore' or '/dashboard'
+    navigate('/explore');
+  };
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${darkMode ? "dark" : ""}`}>
+    <div className={`min-h-screen transition-colors duration-300`}>
       <div className="bg-gradient-to-br from-pink-50 via-purple-50 to-orange-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-pink-900/20 min-h-screen">
         {/* Header */}
         <header className="container mx-auto px-4 py-6 flex justify-between items-center">
@@ -35,14 +35,6 @@ export default function LandingPage() {
             </span>
           </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleDarkMode}
-            className="rounded-full hover:bg-white/20 dark:hover:bg-gray-800/50"
-          >
-            {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </Button>
         </header>
 
         {/* Hero Section */}
@@ -69,7 +61,15 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-              <GoogleLoginButton/>
+              {currentUser ? (
+                // If user is logged in, show the "Explore" button
+                <Button onClick={handleExploreClick} size="lg">
+                  <Zap className="mr-2 h-5 w-5" /> Explore Now
+                </Button>
+              ) : (
+                // If user is not logged in, show the Google Login button
+                <GoogleLoginButton />
+              )}
               <Button
                 variant="outline"
                 size="lg"
@@ -192,7 +192,7 @@ export default function LandingPage() {
               Your next meaningful conversation is just one swipe away. Join millions discovering the world through
               voice.
             </p>
-            <GoogleLoginButton/>
+            <GoogleLoginButton />
           </div>
         </section>
 

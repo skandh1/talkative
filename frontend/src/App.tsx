@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/themeContext';
 
 // Import your NEW layout component
 import ProtectedLayout from './components/layout/ProtectedLayout';
@@ -22,26 +23,32 @@ const App: React.FC = () => {
   return (
     <Router>
       <AuthProvider>
-        <Suspense fallback={<LoadingSpinner />}>
-          <Navbar />
-          <Routes>
-            {/* Public Route */}
-            <Route path="/" element={<LandingPage />} />
+        <ThemeProvider>
+          <Suspense fallback={<LoadingSpinner />}>
+            <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
+              <Navbar />
+              <main className="max-w-7xl mx-auto px-6 py-8">
+                <Routes>
+                  {/* Public Route */}
+                  <Route path="/" element={<LandingPage />} />
 
-            {/* Use the new ProtectedLayout for the nested routes */}
-            <Route element={<ProtectedLayout />}>
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="home" element={<Home />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="clubs" element={<Clubs />} />
-              <Route path="explore" element={<Explore />} />
-              <Route path="settings" element={<Settings />} />
-            </Route>
+                  {/* Use the new ProtectedLayout for the nested routes */}
+                  <Route element={<ProtectedLayout />}>
+                    <Route path="dashboard" element={<Dashboard />} />
+                    <Route path="home" element={<Home />} />
+                    <Route path="profile" element={<Profile />} />
+                    <Route path="clubs" element={<Clubs />} />
+                    <Route path="explore" element={<Explore />} />
+                    <Route path="settings" element={<Settings />} />
+                  </Route>
 
-            {/* Catch-all 404 Route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
+                  {/* Catch-all 404 Route */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </main>
+            </div>
+          </Suspense>
+        </ThemeProvider>
       </AuthProvider>
     </Router>
   );
