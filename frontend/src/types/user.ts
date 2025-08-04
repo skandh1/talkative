@@ -24,5 +24,7 @@ export interface User {
   topics: string[];
   clubs: string[];      // ObjectId becomes string
   createdAt: string;    // Date becomes string
-  updatedAt:string;     // Date becomes string
+  updatedAt: string;
+  usernameLastUpdatedAt?: Date;
+  // Date becomes string
 }

@@ -4,7 +4,7 @@ const API_URL = 'http://localhost:5000/api';
 
 export async function getProtectedData(user: User) {
   const idToken = await user.getIdToken();
-  console.log(idToken)
+  // console.log(idToken)
   
   const response = await fetch(`${API_URL}/protected`, {
     headers: {
@@ -12,11 +12,12 @@ export async function getProtectedData(user: User) {
     }
   });
 
-  console.log(response)
+  // console.log(response)
 
   if (!response.ok) {
     throw new Error('Failed to fetch protected data');
   }
 
-  return response.json();
+  const data = await response.json();
+  return { ...data, idToken };
 }

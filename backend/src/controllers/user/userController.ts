@@ -20,6 +20,7 @@ export const createUser = async (req: Request, res: Response) => {
 // Get user by ID
 export const getUserById = async (req: Request, res: Response) => {
   try {
+    console.log("user -> ", req.user)
     const user = await User.findById(req.params.id)
       .populate('favs', 'username profilePic')
       .populate('friends', 'username profilePic')
@@ -37,26 +38,82 @@ export const getUserById = async (req: Request, res: Response) => {
 };
 
 // Update user
-export const updateUser = async (req: Request, res: Response) => {
+export const updateMyProfile = async (req: Request, res: Response) => {
+  // Get the email from the decoded Firebase token attached by the middleware.
+  const userEmail = req.user?.email;
+
+  // Add a check to ensure an email exists in the token.
+  if (!userEmail) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Valid email not found in authentication token.' 
+    });
+  }
+  
+  const { username, age, profilePic, about, gender, topics } = req.body;
+
   try {
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-    if (!updatedUser) {
-      return res.status(404).json({ error: 'User not found' });
+    // 💡 KEY CHANGE: Find the user in MongoDB using their email address.
+    const user = await User.findOne({ email: userEmail });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found in our database.' });
     }
-    res.json(updatedUser);
+
+    // --- Username Change Logic ---
+    if (username && username !== user.username) {
+      // This logic remains exactly the same.
+      if (user.usernameLastUpdatedAt) {
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        const timeSinceLastUpdate = new Date().getTime() - user.usernameLastUpdatedAt.getTime();
+        
+        if (timeSinceLastUpdate < twentyFourHours) {
+          const hoursLeft = Math.floor((twentyFourHours - timeSinceLastUpdate) / (1000 * 60 * 60));
+          return res.status(403).json({
+            success: false,
+            message: `You can only change your username once every 24 hours. Please try again in ${hoursLeft}h.`,
+          });
+        }
+      }
+      
+      const existingUser = await User.findOne({ username });
+      // Important: Ensure the found user isn't the current user.
+      if (existingUser && existingUser.id !== user.id) {
+        return res.status(409).json({ success: false, message: 'Username is already taken' });
+      }
+
+      user.username = username;
+      user.usernameLastUpdatedAt = new Date();
+    }
+
+    // --- Update Other Fields (This logic remains the same) ---
+    if (age !== undefined) user.age = age;
+    if (profilePic !== undefined) user.profilePic = profilePic;
+    if (about !== undefined) user.about = about;
+    if (gender !== undefined) user.gender = gender;
+    if (topics !== undefined) user.topics = topics;
+
+    const updatedUser = await user.save();
+
+    // The response logic also remains the same.
+    const responseUser = {
+      id: updatedUser.id,
+      username: updatedUser.username,
+      email: updatedUser.email,
+      profilePic: updatedUser.profilePic,
+      // ... other fields
+    };
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully!',
+      user: responseUser,
+    });
   } catch (error) {
-    if (error instanceof mongoose.Error.ValidationError) {
-      res.status(400).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: 'Internal server error' });
-    }
+    console.error('Error updating profile:', error);
+    res.status(500).json({ success: false, message: 'Server error while updating profile' });
   }
 };
-
 // Delete user (soft delete by changing status)
 export const deleteUser = async (req: Request, res: Response) => {
   try {

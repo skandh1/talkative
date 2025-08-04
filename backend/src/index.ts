@@ -3,12 +3,12 @@ import cors from 'cors';
 import { authenticate } from './middleware/auth';
 import { connectDB } from './config/db';
 import dotenv from 'dotenv';
+dotenv.config();
 
 import userRoutes from './routes/userRoutes';
 import authRoutes from './routes/authRoutes';
 
 // Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -64,5 +64,7 @@ const startServer = async () => {
     process.exit(1);
   }
 };
+
+console.log("hii")
 
 startServer();

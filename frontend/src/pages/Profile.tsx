@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { type User } from '../types/user'; // CORRECT: Import frontend type
 import { fetchUserProfile, updateUserProfile } from '../lib/userApi';
-import { ProfileHeader } from '../components/profile/profileHeader';
-import { ProfileForm } from '../components/profile/profileForm';
+import { ProfileHeader } from '../components/profile/ProfileHeader';
+import { ProfileForm } from '../components/profile/ProfileForm';
 import { Loader2 } from 'lucide-react';
 
 const Profile: React.FC = () => {

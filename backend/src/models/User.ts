@@ -21,7 +21,8 @@ export interface IUser extends Document {
   friends: mongoose.Types.ObjectId[];      // Mutual friends
   blocked: mongoose.Types.ObjectId[];      // Blocked users
   topics: string[];                        // User interests
-  clubs: mongoose.Types.ObjectId[];        // Joined clubs
+  clubs: mongoose.Types.ObjectId[];
+  usernameLastUpdatedAt?: Date; // Joined clubs
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,6 +48,7 @@ const UserSchema: Schema<IUser> = new Schema<IUser>(
       enum: ["male", "female", "other", "prefer_not_to_say"],
       default: "prefer_not_to_say",
     },
+    usernameLastUpdatedAt: { type: Date },
     favs: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     blocked: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
