@@ -38,16 +38,12 @@ export const googleAuth = async (req: Request, res: Response) => {
       },
       {
         upsert: true,
-        new: true,
-        projection: { email: 1, username: 1, profilePic: 1 },
+        new: true
       }
     );
 
-    res.json({
-      email: user.email,
-      username: user.username,
-      profilePic: user.profilePic || null,
-    });
+    res.status(200).json({ user });
+
   } catch (error) {
     console.error('Google auth error:', error);
 
@@ -58,3 +54,4 @@ export const googleAuth = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+

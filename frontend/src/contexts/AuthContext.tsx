@@ -8,12 +8,14 @@ import {
   signOut,
 } from 'firebase/auth';
 import { googleProvider } from '../firebase/firebase';
+import { type User as DBUser } from "../types/user"
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
-  dbUser: { email: string; username?: string; profilePic?: string } | null;
+  dbUser: DBUser | null;
+  setDbUser: React.Dispatch<React.SetStateAction<DBUser | null>>;  // Add this line
   loginWithGoogle: () => Promise<void>;
-  logout: () => Promise<void>;
+logout: () => Promise<void>;
   updateProfilePic: (newUrl: string) => Promise<void>;
 }
 
@@ -25,7 +27,7 @@ export function useAuth() {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
-  const [dbUser, setDbUser] = useState<{ email: string; username?: string; profilePic?: string } | null>(null);
+  const [dbUser, setDbUser] = useState<DBUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   const syncUser = async (firebaseUser: FirebaseUser | null) => {
@@ -51,12 +53,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }),
       });
 
+
       const userData = await response.json();
-      setDbUser({
-        email: userData.email,
-        username: userData.username,
-        profilePic: userData.profilePic,
-      });
+      setDbUser(userData.user);
+      console.log(userData.user)
     } catch (error) {
       console.error('Sync failed:', error);
     }
@@ -114,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value: AuthContextType = {
     currentUser,
     dbUser,
+    setDbUser, // Add this line
     loginWithGoogle,
     logout,
     updateProfilePic,

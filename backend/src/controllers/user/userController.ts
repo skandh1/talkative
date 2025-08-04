@@ -44,12 +44,12 @@ export const updateMyProfile = async (req: Request, res: Response) => {
 
   // Add a check to ensure an email exists in the token.
   if (!userEmail) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Valid email not found in authentication token.' 
+    return res.status(400).json({
+      success: false,
+      message: 'Valid email not found in authentication token.'
     });
   }
-  
+
   const { username, age, profilePic, about, gender, topics } = req.body;
 
   try {
@@ -66,7 +66,7 @@ export const updateMyProfile = async (req: Request, res: Response) => {
       if (user.usernameLastUpdatedAt) {
         const twentyFourHours = 24 * 60 * 60 * 1000;
         const timeSinceLastUpdate = new Date().getTime() - user.usernameLastUpdatedAt.getTime();
-        
+
         if (timeSinceLastUpdate < twentyFourHours) {
           const hoursLeft = Math.floor((twentyFourHours - timeSinceLastUpdate) / (1000 * 60 * 60));
           return res.status(403).json({
@@ -75,7 +75,7 @@ export const updateMyProfile = async (req: Request, res: Response) => {
           });
         }
       }
-      
+
       const existingUser = await User.findOne({ username });
       // Important: Ensure the found user isn't the current user.
       if (existingUser && existingUser.id !== user.id) {
@@ -96,18 +96,12 @@ export const updateMyProfile = async (req: Request, res: Response) => {
     const updatedUser = await user.save();
 
     // The response logic also remains the same.
-    const responseUser = {
-      id: updatedUser.id,
-      username: updatedUser.username,
-      email: updatedUser.email,
-      profilePic: updatedUser.profilePic,
-      // ... other fields
-    };
+    
 
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully!',
-      user: responseUser,
+      user: updatedUser,
     });
   } catch (error) {
     console.error('Error updating profile:', error);
@@ -180,3 +174,13 @@ export const toggleFavorite = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const getCurrentUser = async (req: Request, res: Response) => {
+  try {
+    const userEmail = req.user?.email
+    const user = await User.findOne({ email: userEmail });
+    return res.status(200).json({ user })
+  } catch (e) {
+    console.error(e)
+  }
+}

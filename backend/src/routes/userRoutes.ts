@@ -5,7 +5,8 @@ import {
   updateMyProfile,
   deleteUser,
   getActiveUsers,
-  toggleFavorite
+  toggleFavorite,
+  getCurrentUser
 } from '../controllers/user/userController';
 import { authenticate } from '../middleware/auth';
 import { validate, updateProfileSchema } from '../validators/profile.validator';
@@ -18,9 +19,10 @@ router.get('/active', getActiveUsers);
 
 // Protected routes (require authentication)
 router.use(authenticate);
+router.get("/me", getCurrentUser)
 router.get('/:id', getUserById);
-router.patch(
-  '/me',
+router.put(
+  '/update',
   validate(updateProfileSchema),
   updateMyProfile
 );

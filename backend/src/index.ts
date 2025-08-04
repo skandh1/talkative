@@ -41,10 +41,7 @@ app.get('/api/protected', authenticate, (req, res) => {
 
   res.json({
     message: 'Protected endpoint',
-    user: {
-      uid: req.user.uid,
-      email: req.user.email,
-    },
+    user: req.user
   });
 });
 

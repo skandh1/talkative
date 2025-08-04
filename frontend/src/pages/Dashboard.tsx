@@ -3,6 +3,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../firebase/firebase';
 import { getProtectedData } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 export default function Dashboard() {
   const [user] = useAuthState(auth);
@@ -13,6 +14,7 @@ export default function Dashboard() {
 
   const copyToClipboard = async (text: string) => {
     try {
+      toast.success('cilipbaord copied successfully');
       await navigator.clipboard.writeText(text);
       console.log('Text copied to clipboard');
     } catch (err) {
@@ -30,6 +32,7 @@ export default function Dashboard() {
       const fetchData = async () => {
         try {
           const protectedResponse = await getProtectedData(user);
+          
           setData(protectedResponse);
         } catch (error) {
           console.error('Error fetching protected data:', error);
