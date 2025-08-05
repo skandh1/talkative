@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, Coins, User } from 'lucide-react';
-import ThemeToggleButton from './themeToggleButton';
+import ThemeToggleButton from './ThemeToggleButton';
 import { useAuth } from '@/contexts/AuthContext';
 import { auth } from '@/firebase/firebase';
 
@@ -32,7 +32,7 @@ const Navbar: React.FC = () => {
   };
 
   const handelProfileButtonClick = () => {
-    navigate('/profile');
+    navigate('/me');
   };
 
   return (
