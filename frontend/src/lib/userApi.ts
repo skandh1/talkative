@@ -2,7 +2,7 @@ import { type User } from '../types/user'; // Corrected import path
 
 // Mock user data now conforms to the frontend User type
 const mockUser: User = {
-  id: 'user123',
+  _id: 'user123',
   username: "Alex Ryder",
   email: "alex.ryder@example.com",
   profilePic: "https://i.pravatar.cc/150?u=alexryder",

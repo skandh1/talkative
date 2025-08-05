@@ -77,10 +77,10 @@ export const SearchPage: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           {!isLoading && searchResults.length > 0 && searchResults.map((user) => (
-            <Link key={user.id} to={`/profile/${user._id}`} className="group block">
+            <Link key={user._id} to={`/profile/${user._id}`} className="group block">
               <div className="flex items-center space-x-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md transition-all hover:shadow-xl group-hover:scale-[1.02]">
                 <img
-                  src={user.profilePic || 'https://via.placeholder.com/64'}
+                  src={user.profilePic || 'https://www.gravatar.com/avatar/?d=mp'}
                   alt={user.username}
                   className="w-16 h-16 rounded-full object-cover ring-2 ring-indigo-500/50"
                 />

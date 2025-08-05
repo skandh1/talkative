@@ -8,7 +8,7 @@ import { ThemeProvider } from './contexts/themeContext';
 
 import ProtectedLayout from './components/layout/ProtectedLayout';
 import Navbar from './components/Navbar';
-import { ProfilePage } from './features/profile/profilePage';
+import { ProfilePage } from './features/profile/ProfilePage';
 import { SearchPage } from './features/search/SearchPage';
 
 // Lazy-loaded pages
@@ -49,6 +49,7 @@ const App: React.FC = () => {
                       <Route path="clubs" element={<Clubs />} />
                       <Route path="explore" element={<Explore />} />
                       <Route path="settings" element={<Settings />} />
+                      <Route path="profile/:profileId" element={<ProfilePage />} />
                       <Route path="me" element={<ProfilePage />} />
                       <Route path="search" element={<SearchPage />} />
                     </Route>

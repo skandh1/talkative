@@ -21,6 +21,7 @@ router.get('/active', getActiveUsers);
 // Protected routes (require authentication)
 router.use(authenticate);
 router.get("/me", getCurrentUser)
+// router.get("/u/:id", getCurrentUser)
 router.put(
   '/update',
   validate(updateProfileSchema),

@@ -7,41 +7,60 @@ import {
 } from '../api/profileApi';
 import {toast} from 'react-toastify'; // ✅ or your preferred toast lib
 import { AxiosError } from 'axios';
+import { type User as FirebaseUser } from 'firebase/auth'; // Import the type
 
-export const useUserProfile = () => {
+// The hook now accepts a profileId to fetch a specific user's data
+export const useUserProfile = (profileId?: string) => {
   const queryClient = useQueryClient();
-  const { currentUser, setDbUser } = useAuth();
+  const { currentUser, setDbUser, dbUser } = useAuth();
 
-  // Fetch current user's profile
+  // Determine which user's profile to fetch. If a profileId is provided, use it.
+  // Otherwise, default to the current authenticated user's ID.
+  const userIdToFetch = profileId || dbUser?._id;
+  const isOwner = userIdToFetch === dbUser?._id;
+  
+  
+  // Fetch a specific user's profile based on the userIdToFetch
   const {
     data: user,
     isLoading,
     isError,
     error,
   } = useQuery({
-    queryKey: ['userProfile'],
+    // The queryKey now includes the profileId, ensuring a unique cache for each user's profile
+    queryKey: ['userProfile', userIdToFetch ],
     queryFn: () => {
-      if (!currentUser) throw new Error('User not authenticated');
-      return fetchUserProfile(currentUser);
+      // The `enabled` prop already handles this check, but an additional check is good practice
+      if (!currentUser || !userIdToFetch) {
+        throw new Error('Required data for fetch is missing.');
+      }
+      
+      // Corrected: Pass currentUser and userIdToFetch to the API call
+      // Cast currentUser to FirebaseUser to satisfy TypeScript
+      return fetchUserProfile(currentUser as FirebaseUser, userIdToFetch);
     },
-    enabled: !!currentUser,
+    // The query is only enabled if we have a valid ID to fetch AND a valid user
+    enabled: !!userIdToFetch && !!currentUser,
   });
 
-  // Mutation to update profile
+  // The mutation to update the profile remains tied to the authenticated user
   const {
     mutate: updateProfile,
     isPending: isUpdating,
   } = useMutation({
     mutationFn: (payload: UpdateProfilePayload) => {
       if (!currentUser) throw new Error('User not authenticated');
-
-      return updateUserProfile(currentUser, payload);
+      // Cast currentUser to FirebaseUser to satisfy TypeScript
+      return updateUserProfile(currentUser as FirebaseUser, payload);
     },
     onSuccess: (updatedUser) => {
-      console.log("hihihidifhishfid")
-      console.log("updatedUser", updatedUser)
-      setDbUser(updatedUser)
-      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      // If the owner's profile was updated, update the user in the context
+      if (isOwner) {
+        setDbUser(updatedUser);
+      }
+      
+      // Invalidate the specific profile's query to refetch the latest data
+      queryClient.invalidateQueries({ queryKey: ['userProfile', userIdToFetch] });
       toast.success('Profile updated successfully! ✅');
     },
     onError: (err) => {
@@ -67,5 +86,6 @@ export const useUserProfile = () => {
     error,
     updateProfile,
     isUpdating,
+    isOwner,
   };
 };

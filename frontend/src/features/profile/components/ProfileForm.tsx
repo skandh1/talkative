@@ -25,9 +25,10 @@ import {
   SelectValue,
 } from "../../../components/ui/select";
 import { Label } from "../../../components/ui/label";
+import { toast } from 'react-toastify';
 
 // IMPORTANT: Replace this with your actual ImgBB API key from your .env file
-const IMGBB_API_KEY =  import.meta.env.REACT_APP_IMGBB_API_KEY;
+const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY;
 
 interface ProfileFormProps {
   user: UserProfile;
@@ -61,7 +62,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
       setProfilePicFile(e.target.files[0]);
     }
   };
-  
+
   const uploadImageToImgBB = async (imageFile: File): Promise<string> => {
     setUploadingImage(true);
     const form = new FormData();
@@ -79,11 +80,15 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
         return data.data.url;
       } else {
         setUploadingImage(false);
-        throw new Error('Image upload failed.');
+        // Show a toast error with the API's error message
+        toast.error(data.error.message || 'Image upload failed.');
+        throw new Error(data.error.message || 'Image upload failed.');
       }
     } catch (error) {
       setUploadingImage(false);
       console.error('Error uploading image to ImgBB:', error);
+      // Show a toast error for network or unexpected issues
+      toast.error('An error occurred during image upload. Please try again.');
       throw error;
     }
   };
@@ -95,6 +100,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
       try {
         newProfilePicUrl = await uploadImageToImgBB(profilePicFile);
       } catch (error) {
+        // The error is already handled by toast, so we just return here
         return;
       }
     }
@@ -122,13 +128,13 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
               src={
                 profilePicFile
                   ? URL.createObjectURL(profilePicFile)
-                  : user.profilePic || 'https://via.placeholder.com/150'
+                  : user.profilePic || "https://www.gravatar.com/avatar/?d=mp"
               }
               alt="Profile Preview"
               className="w-32 h-32 rounded-full object-cover ring-4 ring-indigo-500/50 transition-all group-hover:ring-indigo-500"
             />
             <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg xmlns="http://www.w3.org/2003/svg" className="h-8 w-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 20h9" />
                 <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
               </svg>

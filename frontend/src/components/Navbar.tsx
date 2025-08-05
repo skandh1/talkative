@@ -1,13 +1,12 @@
 import React from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, Coins, User } from 'lucide-react';
 import ThemeToggleButton from './ThemeToggleButton';
 import { useAuth } from '@/contexts/AuthContext';
 import { auth } from '@/firebase/firebase';
 
 const Navbar: React.FC = () => {
-
-  const { currentUser } = useAuth();
+  const { currentUser, dbUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -32,8 +31,10 @@ const Navbar: React.FC = () => {
     }
   };
 
-  const handelProfileButtonClick = () => {
-    navigate('/me');
+  const handleProfileButtonClick = () => {
+    if (dbUser) {
+      navigate(`/profile/${dbUser._id}`);
+    }
   };
 
   return (
@@ -66,11 +67,11 @@ const Navbar: React.FC = () => {
         {/* Right side - User info and Theme Toggle */}
 
         <div className="flex items-center space-x-4">
-          {currentUser && (
+          {dbUser && (
             <>
               <div className="flex items-center space-x-2 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300 px-3 py-1 rounded-full">
                 <Coins className="w-4 h-4" />
-                <span className="text-sm font-medium">1,250</span>
+                <span className="text-sm font-medium">{dbUser.coins}</span>
               </div>
 
               <button className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
@@ -80,17 +81,17 @@ const Navbar: React.FC = () => {
                 </span>
               </button>
 
-              <button className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 rounded-full px-3 py-2" onClick={handelProfileButtonClick}>
+              <button className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 rounded-full px-3 py-2" onClick={handleProfileButtonClick}>
                 <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Me</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{dbUser.username}</span>
               </button>
 
               <button
-              onClick={handleLogout}
-              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-            >
-              Logout
-            </button>
+                onClick={handleLogout}
+                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+              >
+                Logout
+              </button>
             </>
           )}
 
