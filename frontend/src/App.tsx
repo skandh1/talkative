@@ -9,6 +9,7 @@ import { ThemeProvider } from './contexts/themeContext';
 import ProtectedLayout from './components/layout/ProtectedLayout';
 import Navbar from './components/Navbar';
 import { ProfilePage } from './features/profile/profilePage';
+import { SearchPage } from './features/search/SearchPage';
 
 // Lazy-loaded pages
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -49,9 +50,10 @@ const App: React.FC = () => {
                       <Route path="explore" element={<Explore />} />
                       <Route path="settings" element={<Settings />} />
                       <Route path="me" element={<ProfilePage />} />
+                      <Route path="search" element={<SearchPage />} />
                     </Route>
 
-                    {/* Fallback for unknown routes */}
+                    {/* Fallback for unknown   routes */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </main>

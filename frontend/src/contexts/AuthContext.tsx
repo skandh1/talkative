@@ -1,22 +1,22 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '../firebase/firebase';
 import {
   type User as FirebaseUser,
   onAuthStateChanged,
   signInWithPopup,
-  signOut,
+  signOut
 } from 'firebase/auth';
-import { googleProvider } from '../firebase/firebase';
-import { type User as DBUser } from "../types/user"
+import { auth, googleProvider } from '../firebase/firebase';
+import { type User as DBUser } from '../types/user';
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   dbUser: DBUser | null;
-  setDbUser: React.Dispatch<React.SetStateAction<DBUser | null>>;  // Add this line
+  setDbUser: React.Dispatch<React.SetStateAction<DBUser | null>>;
   loginWithGoogle: () => Promise<void>;
-logout: () => Promise<void>;
+  logout: () => Promise<void>;
   updateProfilePic: (newUrl: string) => Promise<void>;
+  getToken: () => Promise<string>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -38,7 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const idToken = await firebaseUser.getIdToken();
-      const isFirstLogin = firebaseUser.metadata.creationTime === firebaseUser.metadata.lastSignInTime;
+      const isFirstLogin =
+        firebaseUser.metadata.creationTime === firebaseUser.metadata.lastSignInTime;
 
       const response = await fetch('http://localhost:5000/api/auth/google', {
         method: 'POST',
@@ -53,12 +54,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }),
       });
 
-
       const userData = await response.json();
       setDbUser(userData.user);
-      console.log(userData.user)
+      console.log('Synced user:', userData.user);
     } catch (error) {
-      console.error('Sync failed:', error);
+      console.error('User sync failed:', error);
     }
   };
 
@@ -75,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       await signOut(auth);
+      setCurrentUser(null);
       setDbUser(null);
     } catch (error) {
       console.error('Logout failed:', error);
@@ -86,19 +87,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!dbUser || !currentUser) return;
 
     try {
+      const token = await currentUser.getIdToken();
       await fetch('/api/user/profile', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${await currentUser.getIdToken()}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ profilePic: newUrl }),
       });
 
       setDbUser({ ...dbUser, profilePic: newUrl });
     } catch (error) {
-      console.error('Failed to update profile:', error);
+      console.error('Failed to update profile picture:', error);
     }
+  };
+
+  const getToken = async () => {
+    if (!currentUser) throw new Error('No user logged in');
+    return await currentUser.getIdToken(true); // true = force refresh if needed
   };
 
   useEffect(() => {
@@ -114,10 +121,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value: AuthContextType = {
     currentUser,
     dbUser,
-    setDbUser, // Add this line
+    setDbUser,
     loginWithGoogle,
     logout,
     updateProfilePic,
+    getToken,
   };
 
   return (

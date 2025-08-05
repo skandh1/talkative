@@ -6,7 +6,8 @@ import {
   deleteUser,
   getActiveUsers,
   toggleFavorite,
-  getCurrentUser
+  getCurrentUser,
+  getUserName
 } from '../controllers/user/userController';
 import { authenticate } from '../middleware/auth';
 import { validate, updateProfileSchema } from '../validators/profile.validator';
@@ -20,13 +21,15 @@ router.get('/active', getActiveUsers);
 // Protected routes (require authentication)
 router.use(authenticate);
 router.get("/me", getCurrentUser)
-router.get('/:id', getUserById);
 router.put(
   '/update',
   validate(updateProfileSchema),
   updateMyProfile
 );
+
+router.get("/search", getUserName)
 router.delete('/:id', deleteUser); // Consider adding additional logic to ensure users can only delete their own accounts
 router.post('/:userId/favorites', toggleFavorite);
+router.get('/find/:id', getUserById);
 
 export default router;

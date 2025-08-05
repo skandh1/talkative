@@ -16,6 +16,7 @@ const Navbar: React.FC = () => {
     { name: 'Clubs', path: '/clubs' },
     { name: 'Explore', path: '/explore' },
     { name: 'Dashboard', path: '/dashboard' },
+    { name: 'search', path: '/search' },
   ];
 
   const isActive = (path: string) => {

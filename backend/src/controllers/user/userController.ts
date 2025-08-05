@@ -96,7 +96,7 @@ export const updateMyProfile = async (req: Request, res: Response) => {
     const updatedUser = await user.save();
 
     // The response logic also remains the same.
-    
+
 
     res.status(200).json({
       success: true,
@@ -182,5 +182,31 @@ export const getCurrentUser = async (req: Request, res: Response) => {
     return res.status(200).json({ user })
   } catch (e) {
     console.error(e)
+  }
+}
+
+export const getUserName = async (req: Request, res: Response) => {
+  const { q } = req.query;
+
+  if (!q) {
+    return res.status(400).json({ message: 'Search query is required.' });
+  }
+
+  try {
+    // Create a case-insensitive regular expression for searching
+    const searchTerm = new RegExp(q, 'i');
+
+    // Use the find method with the RegExp. The text index on the username field
+    // will make this query extremely fast.
+    const users = await User.find(
+      { username: { $regex: searchTerm } },
+      // Select only the public fields to return to the client
+      'id username profilePic'
+    );
+
+    res.json({ users });
+  } catch (error) {
+    console.error('User search error:', error);
+    res.status(500).json({ message: 'Server error during search.' });
   }
 }
