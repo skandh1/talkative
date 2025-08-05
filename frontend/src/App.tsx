@@ -10,6 +10,7 @@ import ProtectedLayout from './components/layout/ProtectedLayout';
 import Navbar from './components/Navbar';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { SearchPage } from './features/search/SearchPage';
+import AuthPage from './pages/AuthPage';
 
 // Lazy-loaded pages
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -40,7 +41,7 @@ const App: React.FC = () => {
                   <Routes>
                     {/* Public route */}
                     <Route path="/" element={<LandingPage />} />
-
+                    <Route path="/auth" element={<AuthPage />} />
                     {/* Protected routes (require auth) */}
                     <Route element={<ProtectedLayout />}>
                       <Route path="dashboard" element={<Dashboard />} />
