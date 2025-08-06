@@ -11,6 +11,8 @@ import Navbar from './components/Navbar';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { SearchPage } from './features/search/SearchPage';
 import AuthPage from './pages/AuthPage';
+// Import the new component
+import RedirectIfAuthenticated from './components/RedirectIfAuhtenticated'; 
 
 // Lazy-loaded pages
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -34,14 +36,24 @@ const App: React.FC = () => {
         <AuthProvider>
           <ThemeProvider>
             <Suspense fallback={<LoadingSpinner />}>
-             <ToastContainer />
+              <ToastContainer />
               <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
                 <Navbar />
                 <main className="max-w-7xl mx-auto px-6 py-8">
                   <Routes>
-                    {/* Public route */}
+                    {/* Public route for LandingPage */}
                     <Route path="/" element={<LandingPage />} />
-                    <Route path="/auth" element={<AuthPage />} />
+                    
+                    {/* Auth page wrapped with RedirectIfAuthenticated */}
+                    <Route 
+                      path="/auth" 
+                      element={
+                        <RedirectIfAuthenticated>
+                          <AuthPage />
+                        </RedirectIfAuthenticated>
+                      } 
+                    />
+
                     {/* Protected routes (require auth) */}
                     <Route element={<ProtectedLayout />}>
                       <Route path="dashboard" element={<Dashboard />} />
@@ -55,7 +67,7 @@ const App: React.FC = () => {
                       <Route path="search" element={<SearchPage />} />
                     </Route>
 
-                    {/* Fallback for unknown   routes */}
+                    {/* Fallback for unknown routes */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </main>

@@ -20,7 +20,7 @@ export const createUser = async (req: Request, res: Response) => {
 // Get user by ID
 export const getUserById = async (req: Request, res: Response) => {
   try {
-    console.log("user -> ", req.user)
+    // console.log("user -> ", req.user)
     const user = await User.findById(req.params.id)
       .populate('favs', 'username profilePic')
       .populate('friends', 'username profilePic')

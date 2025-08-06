@@ -7,12 +7,12 @@ import {
   signOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  updateProfile
 } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase/firebase';
 import { type User as DBUser } from '../types/user';
 
-// Extend the context type to include new email/password functions
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   dbUser: DBUser | null;
@@ -22,8 +22,9 @@ interface AuthContextType {
   signupWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfilePic: (newUrl: string) => Promise<void>;
   getToken: () => Promise<string>;
+  showUsernamePrompt: boolean;
+  completeNewUserSetup: (newUsername: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -36,13 +37,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [dbUser, setDbUser] = useState<DBUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
 
-  /**
-   * Syncs the Firebase user with the backend database.
-   * This function is now generic and works for all authentication providers.
-   * It sends user data (conditionally) to a new, general-purpose backend endpoint.
-   */
-  const syncUser = async (firebaseUser: FirebaseUser | null, displayNameOverRide?: string) => {
+  const syncUser = async (firebaseUser: FirebaseUser | null) => {
     if (!firebaseUser) {
       setDbUser(null);
       return;
@@ -50,20 +47,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const idToken = await firebaseUser.getIdToken();
-      
-      // Determine if this is the first login. This is a robust way to check.
-      const isFirstLogin =
-        firebaseUser.metadata.creationTime === firebaseUser.metadata.lastSignInTime;
+      const isFirstLogin = firebaseUser.metadata.creationTime === firebaseUser.metadata.lastSignInTime;
 
-      // Extract user data, providing fallbacks for non-Google providers.
+      console.log("frontend", firebaseUser.displayName)
 
       const userData = {
         isFirstLogin,
-        displayName: displayNameOverRide || firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+        displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
         photoURL: firebaseUser.photoURL || '',
       };
 
-      // Changed the endpoint to a more generic name that reflects its new purpose.
       const response = await fetch('http://localhost:5000/api/auth/sync-user', {
         method: 'POST',
         headers: {
@@ -75,18 +68,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const dbUserData = await response.json();
       setDbUser(dbUserData.user);
-      console.log('Synced user:', dbUserData.user);
+      // console.log('Synced user:', dbUserData.user);
     } catch (error) {
       console.error('User sync failed:', error);
     }
   };
 
-  // --- EXISTING FUNCTIONS ---
+  const completeNewUserSetup = async (newUsername: string) => {
+    if (!currentUser) return;
+    try {
+      await updateProfile(currentUser, {
+        displayName: newUsername,
+      });
+      setShowUsernamePrompt(false);
+      await syncUser(currentUser);
+    } catch (error) {
+      console.error('Failed to complete new user setup:', error);
+      throw error;
+    }
+  };
 
   const loginWithGoogle = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      await syncUser(result.user);
+      await signInWithPopup(auth, googleProvider);
     } catch (error) {
       console.error('Google login failed:', error);
       throw error;
@@ -104,43 +108,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateProfilePic = async (newUrl: string) => {
-    if (!dbUser || !currentUser) return;
-
-    try {
-      const token = await currentUser.getIdToken();
-      await fetch('/api/user/profile', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ profilePic: newUrl }),
-      });
-
-      setDbUser({ ...dbUser, profilePic: newUrl });
-    } catch (error) {
-      console.error('Failed to update profile picture:', error);
-    }
-  };
-
   const getToken = async () => {
     if (!currentUser) throw new Error('No user logged in');
-    return await currentUser.getIdToken(true); // true = force refresh if needed
+    return await currentUser.getIdToken(true);
   };
-
-  // --- NEW FUNCTIONS FOR EMAIL/PASSWORD AUTH ---
 
   const signupWithEmail = async (email: string, password: string, displayName: string) => {
     try {
-      // Create the user in Firebase Auth
-    
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      // After creation, the user is automatically logged in.
-      // Call syncUser to create the user in your database and set up the dbUser state.
-      await syncUser(userCredential.user, displayName);
-      // Note: You might want to update the displayName here, but the syncUser already handles a default name.
-      // You can add a fetch to your backend to update the username if needed.
+      if (userCredential.user) {
+        await updateProfile(userCredential.user, {
+          displayName: displayName,
+        });
+        await syncUser(userCredential.user);
+      }
     } catch (error) {
       console.error('Email signup failed:', error);
       throw error;
@@ -149,9 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginWithEmail = async (email: string, password: string) => {
     try {
-      // Sign in the user with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      // After successful login, call syncUser to get the corresponding dbUser from your database.
       await syncUser(userCredential.user);
     } catch (error) {
       console.error('Email login failed:', error);
@@ -161,7 +140,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resetPassword = async (email: string) => {
     try {
-      // Send a password reset email to the user.
       await sendPasswordResetEmail(auth, email);
       console.log('Password reset email sent successfully.');
     } catch (error) {
@@ -172,8 +150,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log(user)
       setCurrentUser(user);
-      await syncUser(user);
+      if (user) {
+        // Use a more robust check: if displayName is not set, we need to prompt the user.
+        if (!user.displayName) {
+          setShowUsernamePrompt(true);
+        } else {
+          await syncUser(user);
+          setShowUsernamePrompt(false);
+        }
+      } else {
+        setDbUser(null);
+        setShowUsernamePrompt(false);
+      }
       setLoading(false);
     });
 
@@ -185,12 +175,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     dbUser,
     setDbUser,
     loginWithGoogle,
-    loginWithEmail, // Add the new function to the context
-    signupWithEmail, // Add the new function to the context
-    resetPassword, // Add the new function to the context
+    loginWithEmail,
+    signupWithEmail,
+    resetPassword,
     logout,
-    updateProfilePic,
     getToken,
+    showUsernamePrompt,
+    completeNewUserSetup
   };
 
   return (

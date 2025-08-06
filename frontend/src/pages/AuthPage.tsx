@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+// src/pages/AuthPage.js
+
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Mail, Lock, User } from 'lucide-react';
@@ -10,34 +12,53 @@ const AuthPage = () => {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  const { loginWithEmail, signupWithEmail, resetPassword, loginWithGoogle } = useAuth();
+  const [usernameForPrompt, setUsernameForPrompt] = useState('');
+  const { 
+    loginWithEmail, 
+    signupWithEmail, 
+    resetPassword, 
+    loginWithGoogle, 
+    showUsernamePrompt, 
+    completeNewUserSetup,
+    currentUser,
+  } = useAuth();
   const navigate = useNavigate();
+  
+  // This useEffect will pre-populate the username field for new Google users
+  useEffect(() => {
+    if (showUsernamePrompt && currentUser && !usernameForPrompt) {
+      // Use the Google-provided displayName or a fallback
+      const suggestedName = currentUser.displayName || currentUser.email?.split('@')[0] || '';
+      setUsernameForPrompt(suggestedName);
+    }
+  }, [showUsernamePrompt, currentUser, usernameForPrompt]);
 
-  const handleAuth = async (event: { preventDefault: () => void; }) => {
+  // This useEffect will handle navigation for returning users
+  useEffect(() => {
+    if (currentUser && !showUsernamePrompt) {
+      navigate('/dashboard');
+    }
+  }, [currentUser, showUsernamePrompt, navigate]);
+
+  const handleAuth = async (event) => {
     event.preventDefault();
-    
     try {
       if (isSignUp) {
         await signupWithEmail(email, password, displayName);
         toast.success('Account created successfully!');
-        navigate('/dashboard');
       } else {
         await loginWithEmail(email, password);
         toast.success('Logged in successfully!');
-        navigate('/dashboard');
       }
     } catch (err) {
       console.error(err);
       let errorMessage = 'An unexpected error occurred.';
-      // Use Firebase error codes for more specific messages
-      if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
         errorMessage = 'Invalid email or password.';
       } else if (err.code === 'auth/email-already-in-use') {
         errorMessage = 'This email is already in use.';
       } else if (err.code === 'auth/weak-password') {
         errorMessage = 'Password should be at least 6 characters.';
-      } else if (err.code == "auth/invalid-credential") {
-         errorMessage = 'wrong password';
       } else if (err.message) {
         errorMessage = err.message;
       }
@@ -66,14 +87,70 @@ const AuthPage = () => {
   const handleGoogleLogin = async () => {
     try {
       await loginWithGoogle();
-      toast.success('Logged in with Google successfully!');
-      navigate('/dashboard');
     } catch (err) {
       console.error(err);
       toast.error('Failed to log in with Google.');
     }
   };
 
+  const handleUsernameSubmit = async (event) => {
+    event.preventDefault();
+    if (usernameForPrompt.trim()) {
+      try {
+        await completeNewUserSetup(usernameForPrompt);
+        toast.success('Username set successfully!');
+      } catch (err) {
+        toast.error('Failed to set username.');
+      }
+    } else {
+      toast.error('Username cannot be empty.');
+    }
+  };
+
+  if (showUsernamePrompt) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <ToastContainer
+          position="top-center"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="dark"
+        />
+        <div className="bg-gray-800 p-8 rounded-3xl shadow-2xl w-full max-w-md border border-gray-700 space-y-6">
+          <h2 className="text-3xl font-bold text-center text-white mb-6">
+            Choose Your Username
+          </h2>
+          <form onSubmit={handleUsernameSubmit} className="space-y-4">
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                value={usernameForPrompt}
+                onChange={(e) => setUsernameForPrompt(e.target.value)}
+                placeholder="Enter your username"
+                required
+                className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-xl px-4 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+            >
+              Save Username
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Render the regular auth form
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <ToastContainer
@@ -158,7 +235,6 @@ const AuthPage = () => {
           className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-xl px-8 py-4 text-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
         >
           <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24">
-            {/* Google Icon SVG */}
             <path
               fill="currentColor"
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
