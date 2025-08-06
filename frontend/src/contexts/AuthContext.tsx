@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginWithGoogle = async () => {
-    try {
+    try { 
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
       console.error('Google login failed:', error);
