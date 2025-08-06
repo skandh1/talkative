@@ -82,6 +82,8 @@ export const syncUserController = async (req: Request, res: Response) => {
     // Use a more generic body to handle data from all authentication providers.
     const { isFirstLogin: clientClaimsFirstLogin, displayName, photoURL } = req.body;
 
+    console.log(displayName)
+
     const user = await User.findOneAndUpdate(
       { email: decodedToken.email },
       {
