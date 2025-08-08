@@ -18,24 +18,31 @@ export const createUser = async (req: Request, res: Response) => {
 };
 
 // Get user by ID
-export const getUserById = async (req: Request, res: Response) => {
+export const getUserProfile = async (req: Request, res: Response) => {
+  const { identifier } = req.params;
+
   try {
-    // console.log("user -> ", req.user)
-    const user = await User.findById(req.params.id)
-      .populate('favs', 'username profilePic')
-      .populate('friends', 'username profilePic')
-      .populate('blocked', 'username')
-      .populate('clubs', 'name');
+    let user;
+
+    // Check if the identifier is a valid MongoDB ObjectId
+    if (mongoose.Types.ObjectId.isValid(identifier)) {
+      user = await User.findById(identifier).select('-email -friends -blocked');
+    } else {
+      // Otherwise, assume it's a username
+      user = await User.findOne({ username: identifier }).select('-email -friends -blocked');
+    }
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
-    res.json(user);
+
+    res.status(200).json(user);
   } catch (error) {
-    console.error("Error in getUserById:", error); // 👈 Log the full error
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ success: false, message: 'Server error while fetching user profile' });
   }
 };
+
 
 // Update user
 export const updateMyProfile = async (req: Request, res: Response) => {

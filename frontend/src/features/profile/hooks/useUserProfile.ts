@@ -10,38 +10,36 @@ import { AxiosError } from 'axios';
 import { type User as FirebaseUser } from 'firebase/auth';
 
 // The hook now accepts a profileId to fetch a specific user's data
-export const useUserProfile = (profileId?: string) => {
+export const useUserProfile = (identifier?: string) => {
   const queryClient = useQueryClient();
   const { currentUser, setDbUser, dbUser } = useAuth();
 
-  // Determine which user's profile to fetch. If a profileId is provided, use it.
-  // Otherwise, default to the current authenticated user's ID.
-  const userIdToFetch = profileId || dbUser?._id;
-  const isOwner = userIdToFetch === dbUser?._id;
+  // Helper to determine if the identifier is a MongoDB ObjectId
+  const isMongoId = (str: string) => /^[0-9a-fA-F]{24}$/.test(str);
 
-
-  // Fetch a specific user's profile based on the userIdToFetch
+  // The query key now uses the identifier directly.
   const {
     data: user,
     isLoading,
     isError,
     error,
   } = useQuery({
-    // The queryKey now includes the profileId, ensuring a unique cache for each user's profile
-    queryKey: ['userProfile', userIdToFetch],
+    queryKey: ['userProfile', identifier],
     queryFn: () => {
-      // The `enabled` prop already handles this check, but an additional check is good practice
-      if (!currentUser || !userIdToFetch) {
+      if (!currentUser || !identifier) {
         throw new Error('Required data for fetch is missing.');
       }
+      // This is the key change: we now infer whether the identifier is an ID or a username
+      const isById = isMongoId(identifier);
 
-      // Corrected: Pass currentUser and userIdToFetch to the API call
-      // Cast currentUser to FirebaseUser to satisfy TypeScript
-      return fetchUserProfile(currentUser as FirebaseUser, userIdToFetch);
+      // Pass the identifier and the type of lookup to the API call.
+      return fetchUserProfile(currentUser as FirebaseUser, identifier, isById);
     },
-    // The query is only enabled if we have a valid ID to fetch AND a valid user
-    enabled: !!userIdToFetch && !!currentUser,
+    enabled: !!identifier && !!currentUser,
   });
+
+  // Determine if the currently logged-in user is the owner of the profile being viewed
+  const isOwner = identifier && (identifier === dbUser?.username || identifier === dbUser?._id);
 
   // The mutation to update the profile remains tied to the authenticated user
   const {
@@ -50,7 +48,6 @@ export const useUserProfile = (profileId?: string) => {
   } = useMutation({
     mutationFn: (payload: UpdateProfilePayload) => {
       if (!currentUser) throw new Error('User not authenticated');
-      // Cast currentUser to FirebaseUser to satisfy TypeScript
       return updateUserProfile(currentUser as FirebaseUser, payload);
     },
     onSuccess: (updatedUser) => {
@@ -60,8 +57,8 @@ export const useUserProfile = (profileId?: string) => {
       }
 
       // Invalidate the specific profile's query to refetch the latest data
-      queryClient.invalidateQueries({ queryKey: ['userProfile', userIdToFetch] });
-      toast.success('Profile updated successfully! ✅');
+      queryClient.invalidateQueries({ queryKey: ['userProfile', identifier] });
+      // toast.success('Profile updated successfully! ✅');
     },
     onError: (err) => {
       let message = 'Something went wrong while updating.';
@@ -74,7 +71,7 @@ export const useUserProfile = (profileId?: string) => {
         message = err.message;
       }
 
-      toast.error(message); // ✅ Give user backend-specific feedback
+      toast.error(message);
       console.error('Profile update error:', err);
     },
   });

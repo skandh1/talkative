@@ -61,7 +61,8 @@ const App: React.FC = () => {
                       <Route path="clubs" element={<Clubs />} />
                       <Route path="explore" element={<Explore />} />
                       <Route path="settings" element={<Settings />} />
-                      <Route path="profile/:profileId" element={<ProfilePage />} />
+                      {/* The route now accepts a single, generic identifier */}
+                      <Route path="profile/:identifier" element={<ProfilePage />} />
                       <Route path="me" element={<ProfilePage />} />
                       <Route path="search" element={<SearchPage />} />
                     </Route>

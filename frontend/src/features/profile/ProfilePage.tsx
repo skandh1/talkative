@@ -7,12 +7,14 @@ import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 export const ProfilePage: React.FC = () => {
-  const params = useParams<{ profileId?: string }>();
-  const profileId = params.profileId;
+  // Get the identifier from the URL, which can be an _id or a username
+  const { identifier } = useParams<{ identifier?: string }>();
+  
 
   const [isEditing, setIsEditing] = useState(false);
   const { dbUser } = useAuth();
-  const { updateProfile, user, isUpdating } = useUserProfile(profileId);
+  // The hook now handles fetching by either ID or username
+  const { updateProfile, user, isUpdating } = useUserProfile(identifier);
 
   const displayUser = user || dbUser;
 
@@ -27,8 +29,8 @@ export const ProfilePage: React.FC = () => {
       <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
     </div>
   );
-
-  const isOwner = dbUser?._id === profileId;
+  // The isOwner check now correctly uses the username for comparison
+  const isOwner = identifier && (identifier === dbUser?.username || identifier === dbUser?._id);
 
   const handleUpdateSubmit = (data: Partial<typeof displayUser>) => {
     updateProfile(data, {
@@ -77,7 +79,7 @@ export const ProfilePage: React.FC = () => {
                 {/* Online/Offline status indicator */}
                 <div
                   className={`absolute bottom-2 right-2 w-4 h-4 rounded-full border-2 border-white dark:border-gray-800
-                    ${displayUser.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}
+                    ${displayUser.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}
                   title={displayUser.isOnline ? "Online" : "Offline"}
                 />
               </div>
@@ -92,7 +94,7 @@ export const ProfilePage: React.FC = () => {
                 {/* Profile Status Badge - Public */}
                 {displayUser.profileStatus && (
                   <span className={`inline-block mt-2 text-xs font-semibold px-2.5 py-0.5 rounded-full uppercase
-                    ${displayUser.profileStatus === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
+                    ${displayUser.profileStatus === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
                       displayUser.profileStatus === 'banned' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' :
                         'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`
                   }>
@@ -131,7 +133,7 @@ export const ProfilePage: React.FC = () => {
                 {isOwner && <StatCard label="Coins" value={displayUser.coins} />}
                 <StatCard label="Rating" value={displayUser.rating} />
                 <StatCard label="Calls" value={displayUser.callCount} />
-                {isOwner && <StatCard label="Friends" value={displayUser.friends.length} />}
+                {isOwner && <StatCard label="Friends" value={displayUser.friends?.length} />}
               </div>
             </div>
 

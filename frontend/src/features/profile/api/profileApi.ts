@@ -1,50 +1,59 @@
 import axios from 'axios';
-import type { User as UserProfile } from '../../../types/user';
-import type { User as FirebaseUser } from 'firebase/auth';
+import { type User as FirebaseUser } from 'firebase/auth';
+import { type User } from '../../../types/user';
 
-export type UpdateProfilePayload = Partial<Omit<UserProfile, 'id' | 'email'>>;
+const API_BASE_URL = 'http://localhost:5000/api';
 
-const API_BASE_URL = 'http://localhost:5000/api/users';
+export interface UpdateProfilePayload {
+  username?: string;
+  displayName?: string;
+  age?: number;
+  gender?: User['gender'];
+  profilePic?: string;
+  about?: string;
+  topics?: string[];
+}
 
 /**
- * Fetches a user's profile.
- * It will fetch the authenticated user's profile by default, or a specific user's
- * profile if a userId is provided.
- * @param currentUser - The Firebase authenticated user object.
- * @param userId - Optional ID of the user to fetch.
+ * Fetches a user profile from the backend by ID or username.
+ * @param currentUser The authenticated Firebase user.
+ * @param identifier The user's _id or username.
+ * @param isById Flag to indicate if the identifier is an ID.
+ * @returns A promise that resolves to the user's data.
  */
 export const fetchUserProfile = async (
   currentUser: FirebaseUser,
-  userId?: string
-): Promise<UserProfile> => {
+  identifier: string,
+  isById: boolean
+): Promise<User> => {
   const token = await currentUser.getIdToken();
+  const url = isById
+    ? `${API_BASE_URL}/users/id/${identifier}`
+    : `${API_BASE_URL}/users/username/${identifier}`;
 
-  
-  // Conditionally set the API endpoint based on whether a userId is provided.
-  // If no userId, fetch the current user's profile via the '/me' endpoint.
-  // If a userId is present, fetch that specific user's profile via a separate endpoint.
-  const endpoint = userId ? `${API_BASE_URL}/find/${userId}` : `${API_BASE_URL}/me`;
-  
-  const response = await axios.get(endpoint, {
-    headers: { Authorization: `Bearer ${token}` },
+  const response = await axios.get(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   });
-  // console.log("response from api", response.data)
   return response.data;
 };
 
 /**
- * Updates the authenticated user's profile.
- * @param currentUser - The Firebase authenticated user object.
- * @param data - The profile fields to update.
+ * Updates the current user's profile on the backend.
+ * @param currentUser The authenticated Firebase user.
+ * @param payload The data to update the profile with.
+ * @returns A promise that resolves to the updated user's data.
  */
 export const updateUserProfile = async (
   currentUser: FirebaseUser,
-  data: UpdateProfilePayload
-): Promise<UserProfile> => {
+  payload: UpdateProfilePayload
+): Promise<User> => {
   const token = await currentUser.getIdToken();
-  console.log(data)
-  const response = await axios.put(`${API_BASE_URL}/update`, data, {
-    headers: { Authorization: `Bearer ${token}` },
+  const response = await axios.put(`${API_BASE_URL}/users/update`, payload, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   });
   return response.data.user;
 };
