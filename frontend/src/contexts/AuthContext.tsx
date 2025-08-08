@@ -11,7 +11,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase/firebase';
 import { type User as DBUser } from '../types/user';
-import type { StringToBoolean } from 'class-variance-authority/types';
+
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;

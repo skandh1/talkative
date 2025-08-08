@@ -25,7 +25,7 @@ const Navbar: React.FC = () => {
   const handleLogout = async () => {
     try {
       await auth.signOut();
-      navigate('/login');
+      navigate('/');
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -33,7 +33,7 @@ const Navbar: React.FC = () => {
 
   const handleProfileButtonClick = () => {
     if (dbUser) {
-      navigate(`/profile/${dbUser._id}`);
+      navigate(`/profile/${dbUser.username}`);
     }
   };
 
