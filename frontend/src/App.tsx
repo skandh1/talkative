@@ -11,7 +11,6 @@ import Navbar from './components/Navbar';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { SearchPage } from './features/search/SearchPage';
 import AuthPage from './pages/AuthPage';
-// Import the new component
 import RedirectIfAuthenticated from './components/RedirectIfAuhtenticated'; 
 
 // Lazy-loaded pages
@@ -54,7 +53,7 @@ const App: React.FC = () => {
                       } 
                     />
 
-                    {/* Protected routes (require auth) */}
+                    {/* Protected routes are now nested under a single ProtectedLayout route */}
                     <Route element={<ProtectedLayout />}>
                       <Route path="dashboard" element={<Dashboard />} />
                       <Route path="home" element={<Home />} />

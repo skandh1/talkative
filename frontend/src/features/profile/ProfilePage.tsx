@@ -4,12 +4,7 @@ import { ProfileForm } from './components/ProfileForm';
 import { useUserProfile } from './hooks/useUserProfile';
 import { Button } from "../../components/ui/button";
 import { useParams } from 'react-router-dom';
-// import { type User } from '../../../types/user';
-
-// You would get this from your routing system, e.g., react-router-dom
-// For demonstration, we use a placeholder and can simulate a different user
-// const { profileId } = useParams<{ profileId: string }>();
-// Replace with actual logic to get the ID
+import { toast } from 'react-toastify';
 
 export const ProfilePage: React.FC = () => {
   const params = useParams<{ profileId?: string }>();
@@ -35,11 +30,23 @@ export const ProfilePage: React.FC = () => {
 
   const isOwner = dbUser?._id === profileId;
 
+  const handleUpdateSubmit = (data: Partial<typeof displayUser>) => {
+    updateProfile(data, {
+      onSuccess: () => {
+        setIsEditing(false);
+        toast.success("Profile updated successfully! ✅");
+      },
+      onError: (error) => {
+        toast.error(error.message || "Failed to update profile.");
+      }
+    });
+  };
+
   return (
     <div className="bg-gray-50 dark:bg-gray-900 min-h-screen p-4 sm:p-6 lg:p-8 flex items-center justify-center">
       <div className="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden p-8 transition-all duration-300 transform">
         <div className="flex items-center justify-between mb-8 border-b border-gray-200 dark:border-gray-700 pb-4">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{isOwner ? 'My Profile' : `${displayUser.username}'s Profile`}</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{isOwner ? 'My Profile' : `${displayUser.displayName}'s Profile`}</h1>
           {isOwner && !isEditing && (
             <Button
               onClick={() => setIsEditing(true)}
@@ -53,13 +60,7 @@ export const ProfilePage: React.FC = () => {
         {isEditing && isOwner ? (
           <ProfileForm
             user={displayUser}
-            onSubmit={(data) => {
-              updateProfile(data, {
-                onSuccess: () => {
-                  setIsEditing(false);
-                },
-              });
-            }}
+            onSubmit={handleUpdateSubmit}
             onCancel={() => setIsEditing(false)}
             isUpdating={isUpdating}
           />
@@ -76,27 +77,31 @@ export const ProfilePage: React.FC = () => {
                 {/* Online/Offline status indicator */}
                 <div
                   className={`absolute bottom-2 right-2 w-4 h-4 rounded-full border-2 border-white dark:border-gray-800
-                    ${displayUser.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}
+                    ${displayUser.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}
                   title={displayUser.isOnline ? "Online" : "Offline"}
                 />
               </div>
               <div className="flex-1">
                 <p className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  {displayUser.username}
-                  {/* Profile Status Badge - Public */}
-                  {displayUser.profileStatus && (
-                    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full uppercase ml-2
-                      ${displayUser.profileStatus === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
-                        displayUser.profileStatus === 'banned' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' :
-                          'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`
-                    }>
-                      {displayUser.profileStatus}
-                    </span>
-                  )}
+                  {displayUser.displayName}
                 </p>
+                {/* Display unique username here */}
+                <p className="text-lg text-gray-500 dark:text-gray-400 mt-1">
+                  @{displayUser.username}
+                </p>
+                {/* Profile Status Badge - Public */}
+                {displayUser.profileStatus && (
+                  <span className={`inline-block mt-2 text-xs font-semibold px-2.5 py-0.5 rounded-full uppercase
+                    ${displayUser.profileStatus === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
+                      displayUser.profileStatus === 'banned' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' :
+                        'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`
+                  }>
+                    {displayUser.profileStatus}
+                  </span>
+                )}
                 {/* Only display email to the owner */}
                 {isOwner && (
-                  <p className="text-md text-gray-500 dark:text-gray-400 mt-1">{displayUser.email}</p>
+                  <p className="text-md text-gray-500 dark:text-gray-400 mt-4">{displayUser.email}</p>
                 )}
                 <p className="text-lg text-gray-700 dark:text-gray-300 mt-4">
                   <strong>About:</strong> {displayUser.about || 'Not set'}

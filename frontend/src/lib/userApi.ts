@@ -3,6 +3,7 @@ import { type User } from '../types/user'; // Corrected import path
 // Mock user data now conforms to the frontend User type
 const mockUser: User = {
   _id: 'user123',
+  displayName: 'rohit',
   username: "Alex Ryder",
   email: "alex.ryder@example.com",
   profilePic: "https://i.pravatar.cc/150?u=alexryder",
@@ -21,6 +22,7 @@ const mockUser: User = {
   clubs: [],
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
+  hasSetUsername: false
 };
 
 // Functions now use the frontend 'User' type

@@ -7,6 +7,7 @@ export type ProfileStatus = "active" | "inactive" | "banned" | "deleted";
 // The User interface for your frontend application.
 export interface User {
   _id: string; // MongoDB's _id is usually sent as a string.
+  displayName: string;
   username: string;
   email: string;
   profilePic?: string;
@@ -26,5 +27,6 @@ export interface User {
   createdAt: string;    // Date becomes string
   updatedAt: string;
   usernameLastUpdatedAt?: Date;
+  hasSetUsername: boolean;
   // Date becomes string
 }

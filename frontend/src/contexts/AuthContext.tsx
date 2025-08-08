@@ -8,10 +8,10 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
-  updateProfile
 } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase/firebase';
 import { type User as DBUser } from '../types/user';
+import type { StringToBoolean } from 'class-variance-authority/types';
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -19,12 +19,13 @@ interface AuthContextType {
   setDbUser: React.Dispatch<React.SetStateAction<DBUser | null>>;
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
-  signupWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
+  signupWithEmail: (email: string, password: string, username: string, displayName: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   getToken: () => Promise<string>;
   showUsernamePrompt: boolean;
-  completeNewUserSetup: (newUsername: string) => Promise<void>;
+  completeGoogleSignup: (newUsername: string) => Promise<void>; // Renamed to be more specific
+  checkUsername: (username: string) => Promise<boolean>; // New function to check username availability
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -39,7 +40,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
 
-  const syncUser = async (firebaseUser: FirebaseUser | null) => {
+  // New function to check for username availability on the backend
+  const checkUsername = async (username: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/auth/check-username?username=${username}`);
+      const data = await response.json();
+      return data.available;
+    } catch (error) {
+      console.error('Failed to check username:', error);
+      return false;
+    }
+  };
+
+  const syncUser = async (firebaseUser: FirebaseUser | null, usernameFromSignup?: string, getEmailDisplayName?: string) => {
     if (!firebaseUser) {
       setDbUser(null);
       return;
@@ -47,14 +60,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const idToken = await firebaseUser.getIdToken();
-      const isFirstLogin = firebaseUser.metadata.creationTime === firebaseUser.metadata.lastSignInTime;
-
-      console.log("frontend", firebaseUser.displayName)
-
+      
       const userData = {
-        isFirstLogin,
-        displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+        isFirstLogin: firebaseUser.metadata.creationTime === firebaseUser.metadata.lastSignInTime,
+        displayName: getEmailDisplayName || firebaseUser.displayName || firebaseUser.email?.split('@')[0],
         photoURL: firebaseUser.photoURL || '',
+        username: usernameFromSignup, // Pass the username for email signups
       };
 
       const response = await fetch('http://localhost:5000/api/auth/sync-user', {
@@ -68,20 +79,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const dbUserData = await response.json();
       setDbUser(dbUserData.user);
-      // console.log('Synced user:', dbUserData.user);
+      
+      // If the user has not set their username yet, show the prompt
+      setShowUsernamePrompt(!dbUserData.user?.hasSetUsername);
+
     } catch (error) {
       console.error('User sync failed:', error);
+      setDbUser(null);
     }
   };
-
-  const completeNewUserSetup = async (newUsername: string) => {
+  
+  // This new function handles a Google-logged-in user setting their username for the first time
+  const completeGoogleSignup = async (newUsername: string) => {
     if (!currentUser) return;
     try {
-      await updateProfile(currentUser, {
-        displayName: newUsername,
+      const idToken = await currentUser.getIdToken();
+      
+      const response = await fetch('http://localhost:5000/api/auth/set-username', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: newUsername }),
       });
+      
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to set username.');
+      }
+      
+      setDbUser(result.user);
       setShowUsernamePrompt(false);
-      await syncUser(currentUser);
+
     } catch (error) {
       console.error('Failed to complete new user setup:', error);
       throw error;
@@ -89,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginWithGoogle = async () => {
-    try { 
+    try {
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
       console.error('Google login failed:', error);
@@ -112,15 +142,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!currentUser) throw new Error('No user logged in');
     return await currentUser.getIdToken(true);
   };
-
-  const signupWithEmail = async (email: string, password: string, displayName: string) => {
+  
+  // The signupWithEmail function now requires a username
+  const signupWithEmail = async (email: string, password: string, username: string, displayName: string) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       if (userCredential.user) {
-        await updateProfile(userCredential.user, {
-          displayName: displayName,
-        });
-        await syncUser(userCredential.user);
+        // Sync the user with our backend, sending the username and display name.
+        await syncUser(userCredential.user, username, displayName);
       }
     } catch (error) {
       console.error('Email signup failed:', error);
@@ -150,16 +179,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log(user)
       setCurrentUser(user);
       if (user) {
-        // Use a more robust check: if displayName is not set, we need to prompt the user.
-        if (!user.displayName) {
-          setShowUsernamePrompt(true);
-        } else {
-          await syncUser(user);
-          setShowUsernamePrompt(false);
-        }
+        // Check if the user exists in our DB and if they have a username
+        await syncUser(user);
       } else {
         setDbUser(null);
         setShowUsernamePrompt(false);
@@ -181,7 +204,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout,
     getToken,
     showUsernamePrompt,
-    completeNewUserSetup
+    completeGoogleSignup,
+    checkUsername,
   };
 
   return (

@@ -1,50 +1,77 @@
 // src/pages/AuthPage.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Mail, Lock, User } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useDebounce } from 'use-debounce';
 
 const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState(''); // New state for username input
   const [isSignUp, setIsSignUp] = useState(false);
   const [usernameForPrompt, setUsernameForPrompt] = useState('');
+  const [isUsernameAvailable, setIsUsernameAvailable] = useState(true);
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  
   const { 
     loginWithEmail, 
     signupWithEmail, 
     resetPassword, 
     loginWithGoogle, 
     showUsernamePrompt, 
-    completeNewUserSetup,
+    completeGoogleSignup, 
     currentUser,
+    dbUser,
+    checkUsername,
   } = useAuth();
   const navigate = useNavigate();
+
+  const [debouncedUsername] = useDebounce(username, 500);
+
+  useEffect(() => {
+    if (isSignUp && debouncedUsername) {
+      const validateUsername = async () => {
+        setIsCheckingUsername(true);
+        const available = await checkUsername(debouncedUsername);
+        setIsUsernameAvailable(available);
+        setIsCheckingUsername(false);
+        if (!available) {
+          toast.error('This username is already taken.');
+        }
+      };
+      validateUsername();
+    }
+  }, [isSignUp, debouncedUsername, checkUsername]);
   
-  // This useEffect will pre-populate the username field for new Google users
   useEffect(() => {
     if (showUsernamePrompt && currentUser && !usernameForPrompt) {
-      // Use the Google-provided displayName or a fallback
       const suggestedName = currentUser.displayName || currentUser.email?.split('@')[0] || '';
       setUsernameForPrompt(suggestedName);
     }
   }, [showUsernamePrompt, currentUser, usernameForPrompt]);
 
-  // This useEffect will handle navigation for returning users
   useEffect(() => {
-    if (currentUser && !showUsernamePrompt) {
+    if (currentUser && dbUser && dbUser.username && !showUsernamePrompt) {
       navigate('/dashboard');
     }
-  }, [currentUser, showUsernamePrompt, navigate]);
+  }, [currentUser, dbUser, showUsernamePrompt, navigate]);
 
   const handleAuth = async (event) => {
     event.preventDefault();
+    if (isSignUp && (!isUsernameAvailable || isCheckingUsername)) {
+      if (!isUsernameAvailable) {
+        toast.error('Please choose an available username.');
+      }
+      return;
+    }
     try {
       if (isSignUp) {
-        await signupWithEmail(email, password, displayName);
+        await signupWithEmail(email, password, username, displayName);
         toast.success('Account created successfully!');
       } else {
         await loginWithEmail(email, password);
@@ -93,20 +120,6 @@ const AuthPage = () => {
     }
   };
 
-  const handleUsernameSubmit = async (event) => {
-    event.preventDefault();
-    if (usernameForPrompt.trim()) {
-      try {
-        await completeNewUserSetup(usernameForPrompt);
-        toast.success('Username set successfully!');
-      } catch (err) {
-        toast.error('Failed to set username.');
-      }
-    } else {
-      toast.error('Username cannot be empty.');
-    }
-  };
-
   if (showUsernamePrompt) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
@@ -126,7 +139,7 @@ const AuthPage = () => {
           <h2 className="text-3xl font-bold text-center text-white mb-6">
             Choose Your Username
           </h2>
-          <form onSubmit={handleUsernameSubmit} className="space-y-4">
+          <form onSubmit={handleAuth} className="space-y-4">
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               <input
@@ -183,17 +196,30 @@ const AuthPage = () => {
             />
           </div>
           {isSignUp && (
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Display Name"
-                required
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
-              />
-            </div>
+            <>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Display Name"
+                  required
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
+                />
+              </div>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Username (must be unique)"
+                  required
+                  className={`w-full pl-10 pr-4 py-3 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-colors ${isUsernameAvailable ? 'focus:ring-purple-500' : 'focus:ring-red-500'}`}
+                />
+              </div>
+            </>
           )}
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -209,9 +235,14 @@ const AuthPage = () => {
           
           <button
             type="submit"
-            className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-xl px-4 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+            disabled={isCheckingUsername || (isSignUp && !isUsernameAvailable)}
+            className={`w-full text-white rounded-xl px-4 py-3 font-semibold shadow-lg transition-all duration-300 ${
+              isCheckingUsername || (isSignUp && !isUsernameAvailable)
+                ? 'bg-gray-500 cursor-not-allowed'
+                : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 hover:shadow-xl transform hover:scale-105'
+            }`}
           >
-            {isSignUp ? 'Sign Up' : 'Log In'}
+            {isCheckingUsername ? 'Checking...' : (isSignUp ? 'Sign Up' : 'Log In')}
           </button>
         </form>
 

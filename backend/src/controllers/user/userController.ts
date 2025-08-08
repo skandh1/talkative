@@ -42,6 +42,8 @@ export const updateMyProfile = async (req: Request, res: Response) => {
   // Get the email from the decoded Firebase token attached by the middleware.
   const userEmail = req.user?.email;
 
+  console.log(userEmail)
+
   // Add a check to ensure an email exists in the token.
   if (!userEmail) {
     return res.status(400).json({
@@ -50,7 +52,7 @@ export const updateMyProfile = async (req: Request, res: Response) => {
     });
   }
 
-  const { username, age, profilePic, about, gender, topics } = req.body;
+  const { username, age, profilePic, about, gender, topics, displayName } = req.body;
 
   try {
     // 💡 KEY CHANGE: Find the user in MongoDB using their email address.
@@ -62,13 +64,13 @@ export const updateMyProfile = async (req: Request, res: Response) => {
 
     // --- Username Change Logic ---
     if (username && username !== user.username) {
-      // This logic remains exactly the same.
+      // Check for the 24-hour cooldown
       if (user.usernameLastUpdatedAt) {
         const twentyFourHours = 24 * 60 * 60 * 1000;
         const timeSinceLastUpdate = new Date().getTime() - user.usernameLastUpdatedAt.getTime();
 
         if (timeSinceLastUpdate < twentyFourHours) {
-          const hoursLeft = Math.floor((twentyFourHours - timeSinceLastUpdate) / (1000 * 60 * 60));
+          const hoursLeft = Math.ceil((twentyFourHours - timeSinceLastUpdate) / (1000 * 60 * 60));
           return res.status(403).json({
             success: false,
             message: `You can only change your username once every 24 hours. Please try again in ${hoursLeft}h.`,
@@ -86,7 +88,9 @@ export const updateMyProfile = async (req: Request, res: Response) => {
       user.usernameLastUpdatedAt = new Date();
     }
 
-    // --- Update Other Fields (This logic remains the same) ---
+    // --- Update Other Fields ---
+    // The displayName is now handled correctly.
+    if (displayName !== undefined) user.displayName = displayName;
     if (age !== undefined) user.age = age;
     if (profilePic !== undefined) user.profilePic = profilePic;
     if (about !== undefined) user.about = about;
@@ -94,9 +98,6 @@ export const updateMyProfile = async (req: Request, res: Response) => {
     if (topics !== undefined) user.topics = topics;
 
     const updatedUser = await user.save();
-
-    // The response logic also remains the same.
-
 
     res.status(200).json({
       success: true,
@@ -108,6 +109,7 @@ export const updateMyProfile = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: 'Server error while updating profile' });
   }
 };
+
 // Delete user (soft delete by changing status)
 export const deleteUser = async (req: Request, res: Response) => {
   try {
@@ -210,3 +212,4 @@ export const getUserName = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Server error during search.' });
   }
 }
+

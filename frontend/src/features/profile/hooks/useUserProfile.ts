@@ -5,9 +5,9 @@ import {
   updateUserProfile,
   type UpdateProfilePayload,
 } from '../api/profileApi';
-import {toast} from 'react-toastify'; // ✅ or your preferred toast lib
+import { toast } from 'react-toastify';
 import { AxiosError } from 'axios';
-import { type User as FirebaseUser } from 'firebase/auth'; // Import the type
+import { type User as FirebaseUser } from 'firebase/auth';
 
 // The hook now accepts a profileId to fetch a specific user's data
 export const useUserProfile = (profileId?: string) => {
@@ -18,8 +18,8 @@ export const useUserProfile = (profileId?: string) => {
   // Otherwise, default to the current authenticated user's ID.
   const userIdToFetch = profileId || dbUser?._id;
   const isOwner = userIdToFetch === dbUser?._id;
-  
-  
+
+
   // Fetch a specific user's profile based on the userIdToFetch
   const {
     data: user,
@@ -28,13 +28,13 @@ export const useUserProfile = (profileId?: string) => {
     error,
   } = useQuery({
     // The queryKey now includes the profileId, ensuring a unique cache for each user's profile
-    queryKey: ['userProfile', userIdToFetch ],
+    queryKey: ['userProfile', userIdToFetch],
     queryFn: () => {
       // The `enabled` prop already handles this check, but an additional check is good practice
       if (!currentUser || !userIdToFetch) {
         throw new Error('Required data for fetch is missing.');
       }
-      
+
       // Corrected: Pass currentUser and userIdToFetch to the API call
       // Cast currentUser to FirebaseUser to satisfy TypeScript
       return fetchUserProfile(currentUser as FirebaseUser, userIdToFetch);
@@ -58,7 +58,7 @@ export const useUserProfile = (profileId?: string) => {
       if (isOwner) {
         setDbUser(updatedUser);
       }
-      
+
       // Invalidate the specific profile's query to refetch the latest data
       queryClient.invalidateQueries({ queryKey: ['userProfile', userIdToFetch] });
       toast.success('Profile updated successfully! ✅');

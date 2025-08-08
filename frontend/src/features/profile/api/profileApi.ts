@@ -28,7 +28,7 @@ export const fetchUserProfile = async (
   const response = await axios.get(endpoint, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  console.log("response from api", response.data)
+  // console.log("response from api", response.data)
   return response.data;
 };
 
@@ -42,6 +42,7 @@ export const updateUserProfile = async (
   data: UpdateProfilePayload
 ): Promise<UserProfile> => {
   const token = await currentUser.getIdToken();
+  console.log(data)
   const response = await axios.put(`${API_BASE_URL}/update`, data, {
     headers: { Authorization: `Bearer ${token}` },
   });

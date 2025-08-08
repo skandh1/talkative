@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -26,6 +26,8 @@ import {
 } from "../../../components/ui/select";
 import { Label } from "../../../components/ui/label";
 import { toast } from 'react-toastify';
+import { useDebounce } from 'use-debounce';
+import { useAuth } from '../../../contexts/AuthContext';
 
 // IMPORTANT: Replace this with your actual ImgBB API key from your .env file
 const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY;
@@ -45,17 +47,42 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
 }) => {
   const [profilePicFile, setProfilePicFile] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [isUsernameAvailable, setIsUsernameAvailable] = useState(true);
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const { checkUsername } = useAuth();
 
   const form = useForm<UpdateProfileFormData>({
     resolver: zodResolver(updateProfileSchema),
     defaultValues: {
       username: user.username || '',
+      displayName: user.displayName || '', // Add displayName to default values
       about: user.about || '',
       age: user.age ?? undefined,
       gender: user.gender ?? 'prefer_not_to_say',
       topics: user.topics?.join(', ') || '',
     },
   });
+
+  const currentUsername = form.watch('username');
+  const [debouncedUsername] = useDebounce(currentUsername, 500);
+
+  useEffect(() => {
+    // Only check if the username has changed
+    if (debouncedUsername && debouncedUsername !== user.username) {
+      const validateUsername = async () => {
+        setIsCheckingUsername(true);
+        const available = await checkUsername(debouncedUsername);
+        setIsUsernameAvailable(available);
+        setIsCheckingUsername(false);
+        if (!available) {
+          toast.error('This username is already taken.');
+        }
+      };
+      validateUsername();
+    } else {
+      setIsUsernameAvailable(true);
+    }
+  }, [debouncedUsername, user.username, checkUsername]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -94,6 +121,14 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
   };
 
   const handleFormSubmit: SubmitHandler<UpdateProfileFormData> = async (data) => {
+    // Before submitting, check again for username availability.
+    if (data.username !== user.username) {
+      if (!isUsernameAvailable) {
+        toast.error('The selected username is already taken. Please choose another one.');
+        return;
+      }
+    }
+
     let newProfilePicUrl = user.profilePic;
 
     if (profilePicFile) {
@@ -150,13 +185,35 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
           />
           <FormField
             control={form.control}
+            name="displayName"
+            render={({ field }) => (
+              <FormItem className="w-full max-w-xs">
+                <FormLabel>Display Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="Your display name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
             name="username"
             render={({ field }) => (
               <FormItem className="w-full max-w-xs">
                 <FormLabel>Username</FormLabel>
                 <FormControl>
-                  <Input placeholder="Your username" {...field} />
+                  <Input
+                    placeholder="Your unique username"
+                    {...field}
+                    className={`${!isUsernameAvailable ? 'border-red-500' : ''}`}
+                  />
                 </FormControl>
+                {!isUsernameAvailable && (
+                  <p className="text-sm text-red-500">
+                    This username is not available.
+                  </p>
+                )}
                 <FormMessage />
               </FormItem>
             )}
@@ -241,7 +298,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
           </Button>
           <Button
             type="submit"
-            disabled={isUpdating || uploadingImage}
+            disabled={isUpdating || uploadingImage || isCheckingUsername || !isUsernameAvailable}
           >
             {isUpdating || uploadingImage ? 'Saving...' : 'Save Changes'}
           </Button>
