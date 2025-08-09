@@ -28,22 +28,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
-app.get('/api/public', (req, res) => {
-  res.json({ message: 'Public endpoint' });
-});
-
-// Protected route
-app.get('/api/protected', authenticate, (req, res) => {
-  if (!req.user) {
-    return res.status(403).json({ error: 'Unauthorized' });
-  }
-
-  res.json({
-    message: 'Protected endpoint',
-    user: req.user
-  });
-});
 
 // API Routes
 app.use('/api/auth', authRoutes);

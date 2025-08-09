@@ -6,7 +6,7 @@ export async function getProtectedData(user: User) {
   const idToken = await user.getIdToken();
   // console.log(idToken)
   
-  const response = await fetch(`${API_URL}/protected`, {
+  const response = await fetch(`${API_URL}/auth/protected`, {
     headers: {
       'Authorization': `Bearer ${idToken}`
     }

@@ -187,3 +187,17 @@ export const checkUsernameController = async (req: Request, res: Response) => {
   }
 };
 
+export const publicEndPoint = async (req: Request, res: Response) => {
+  res.json({ message: 'Public endpoint' });
+}
+export const protectedEndPoint = async (req: Request, res: Response) => {
+  if (!req.user) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  res.json({
+    message: 'Protected endpoint',
+    user: req.user
+  });
+}
+
