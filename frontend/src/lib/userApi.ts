@@ -17,7 +17,7 @@ const mockUser: User = {
   gender: "male",
   topics: ["AI", "React", "Sci-Fi", "Travel", "Coffee"],
   favs: [],
-  friends: [],
+  favs: [],
   blocked: [],
   clubs: [],
   createdAt: new Date().toISOString(),

@@ -26,10 +26,10 @@ export const getUserProfile = async (req: Request, res: Response) => {
 
     // Check if the identifier is a valid MongoDB ObjectId
     if (mongoose.Types.ObjectId.isValid(identifier)) {
-      user = await User.findById(identifier).select('-email -friends -blocked');
+      user = await User.findById(identifier).select('-email -favs -blocked');
     } else {
       // Otherwise, assume it's a username
-      user = await User.findOne({ username: identifier }).select('-email -friends -blocked');
+      user = await User.findOne({ username: identifier }).select('-email -favs -blocked');
     }
 
     if (!user) {
@@ -48,8 +48,6 @@ export const getUserProfile = async (req: Request, res: Response) => {
 export const updateMyProfile = async (req: Request, res: Response) => {
   // Get the email from the decoded Firebase token attached by the middleware.
   const userEmail = req.user?.email;
-
-  console.log(userEmail)
 
   // Add a check to ensure an email exists in the token.
   if (!userEmail) {
@@ -144,7 +142,7 @@ export const getActiveUsers = async (req: Request, res: Response) => {
     const users = await User.find({ profileStatus: 'active' })
       .skip(skip)
       .limit(limit)
-      .select('-friends -blocked -favs -clubs'); // Exclude heavy fields
+      .select('-favs -blocked -favs -clubs'); // Exclude heavy fields
 
     const total = await User.countDocuments({ profileStatus: 'active' });
 

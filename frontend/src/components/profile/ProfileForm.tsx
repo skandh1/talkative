@@ -14,6 +14,12 @@ interface ProfileFormProps {
   onCancel: () => void;
 }
 
+const safeGender = (gender?: Gender): Gender =>
+  gender && ['male', 'female', 'other', 'prefer_not_to_say'].includes(gender)
+    ? gender
+    : 'prefer_not_to_say';
+
+
 // Editable fields from the user model
 type EditableUserData = {
   username: string;
@@ -24,19 +30,19 @@ type EditableUserData = {
 
 export const ProfileForm: React.FC<ProfileFormProps> = ({ user, isEditing, isSaving, onSave, onCancel }) => {
   const [formData, setFormData] = useState<EditableUserData>({
-    username: user.username,
+    username: user.username || "",
     about: user.about || '',
     age: user.age || '',
-    gender: user.gender || 'prefer_not_to_say',
+    gender: safeGender(user.gender)
   });
 
   // Reset form if user data changes or editing is cancelled
   useEffect(() => {
     setFormData({
-      username: user.username,
+      username: user.username || "",
       about: user.about || '',
       age: user.age || '',
-      gender: user.gender || 'prefer_not_to_say',
+      gender: safeGender(user.gender), // And here
     });
   }, [user, isEditing]);
 
@@ -56,7 +62,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, isEditing, isSav
     };
     onSave(dataToSave);
   };
-  
+
   // View Mode
   if (!isEditing) {
     return (
@@ -68,7 +74,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, isEditing, isSav
         <div>
           <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Topics of Interest</h3>
           <div className="flex flex-wrap gap-2">
-            {user.topics.length > 0 ? user.topics.map(topic => (
+            {user.topics && user.topics.length > 0 ? user.topics.map(topic => (
               <span key={topic} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300">
                 {topic}
               </span>
@@ -83,19 +89,25 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, isEditing, isSav
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <FormField label="Username">
-        <Input name="username" value={formData.username} onChange={handleChange} placeholder="Your username"/>
+        <Input name="username" value={formData.username} onChange={handleChange} placeholder="Your username" />
       </FormField>
 
       <FormField label="About Me">
-        <Textarea name="about" value={formData.about} onChange={handleChange} rows={4} placeholder="Tell everyone a little about yourself..."/>
+        <Textarea name="about" value={formData.about} onChange={handleChange} rows={4} placeholder="Tell everyone a little about yourself..." />
       </FormField>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <FormField label="Age">
-          <Input name="age" type="number" value={formData.age} onChange={handleChange} placeholder="Your age"/>
+          <Input
+            name="age"
+            type="number"
+            value={formData.age === '' ? '' : formData.age}
+            onChange={handleChange}
+            placeholder="Your age"
+          />
         </FormField>
         <FormField label="Gender">
-          <Select onValueChange={handleGenderChange} defaultValue={formData.gender}>
+          <Select onValueChange={handleGenderChange} value={formData.gender}>
             <SelectTrigger>
               <SelectValue placeholder="Select gender" />
             </SelectTrigger>
@@ -111,10 +123,10 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, isEditing, isSav
 
       <div className="flex justify-end gap-4 pt-4">
         <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
-          <X className="mr-2 h-4 w-4"/> Cancel
+          <X className="mr-2 h-4 w-4" /> Cancel
         </Button>
         <Button type="submit" disabled={isSaving}>
-          {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
+          {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
           Save Changes
         </Button>
       </div>

@@ -107,44 +107,48 @@ export const setUsernameController = async (req: Request, res: Response) => {
 export const syncUserController = async (req: Request, res: Response) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Missing authorization token' });
+
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Missing authorization token" });
     }
 
-    const idToken = authHeader.split(' ')[1];
+    const idToken = authHeader.split(" ")[1];
     const decodedToken = await adminAuth.verifyIdToken(idToken);
 
     if (!decodedToken.email) {
-      return res.status(403).json({ error: 'Email not provided in token' });
+      return res.status(403).json({ error: "Email not provided in token" });
     }
-    
-    // Determine if it's a first time login or a returning user based on the Firebase token
+
+    // Get user metadata from Firebase to determine if it's first-time login
     const firebaseUser = await adminAuth.getUser(decodedToken.uid);
-    const isFirstLogin = firebaseUser.metadata.creationTime === firebaseUser.metadata.lastSignInTime;
+    const isFirstLogin =
+      firebaseUser.metadata.creationTime ===
+      firebaseUser.metadata.lastSignInTime;
 
-    // Use findOneAndUpdate with upsert: true for an atomic operation.
-    // This prevents the duplicate key error.
+    const { username, displayName } = req.body;
 
-    const {displayName} = req.body
-    let user = await User.findOneAndUpdate(
+    // Upsert the user
+    const user = await User.findOneAndUpdate(
       { email: decodedToken.email },
       {
         $setOnInsert: {
           email: decodedToken.email,
-          displayName: displayName || decodedToken.name || decodedToken.email?.split('@')[0],
-          profilePic: decodedToken.picture || '',
+          displayName:
+            displayName || decodedToken.name || decodedToken.email.split("@")[0],
+          profilePic: decodedToken.picture || "",
           coins: 0,
-          rating: 0,
           callCount: 0,
-          profileStatus: 'active',
-          // For email sign-up, a username is provided on the front-end
-          // For Google, it's left undefined to trigger the prompt
-          username: req.body.username || undefined,
-          hasSetUsername: !!req.body.username,
+          rating: {
+            average: 0,
+            count: 0,
+          },
+          profileStatus: "active",
+          username: username || undefined,
+          hasSetUsername: !!username,
         },
         $set: {
-          isOnline: true
-        }
+          isOnline: true,
+        },
       },
       {
         upsert: true,
@@ -152,15 +156,18 @@ export const syncUserController = async (req: Request, res: Response) => {
       }
     );
 
-    res.status(200).json({ user });
-  } catch (error) {
-    console.error('User sync error:', error);
-    if ((error as { code?: string }).code === 'auth/id-token-expired') {
-      return res.status(401).json({ error: 'Token expired' });
+    return res.status(200).json({ user });
+  } catch (error: any) {
+    console.error("User sync error:", error);
+
+    if (error.code === "auth/id-token-expired") {
+      return res.status(401).json({ error: "Token expired" });
     }
-    res.status(500).json({ error: 'Internal server error' });
+
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 export const checkUsernameController = async (req: Request, res: Response) => {
   try {

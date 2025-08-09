@@ -1,32 +1,34 @@
-// The possible values for gender, matching your backend schema.
-export type Gender = "male" | "female" | "other" | "prefer_not_to_say";
-
-// The possible values for profile status.
-export type ProfileStatus = "active" | "inactive" | "banned" | "deleted";
-
-// The User interface for your frontend application.
+// frontend/types/User.ts
 export interface User {
-  _id: string; // MongoDB's _id is usually sent as a string.
-  displayName: string;
-  username: string;
+  _id?: string;
   email: string;
+  username?: string;
+  displayName?: string;
   profilePic?: string;
   about?: string;
-  coins: number;
-  rating: number;
-  callCount: number;
-  isOnline: boolean;
-  profileStatus: ProfileStatus;
   age?: number;
-  gender?: Gender;
-  favs: string[];       // ObjectId becomes string
-  friends: string[];    // ObjectId becomes string
-  blocked: string[];    // ObjectId becomes string
-  topics: string[];
-  clubs: string[];      // ObjectId becomes string
-  createdAt: string;    // Date becomes string
-  updatedAt: string;
-  usernameLastUpdatedAt?: Date;
-  hasSetUsername: boolean;
-  // Date becomes string
+  gender?: "male" | "female" | "other" | "prefer_not_to_say";
+  language?: string;
+  country?: string;
+  isVerified?: boolean;
+  isProfilePublic?: boolean;
+  hasSetUsername?: boolean;
+  usernameLastUpdatedAt?: string;
+  isOnline?: boolean;
+  profileStatus?: "active" | "inactive" | "banned" | "deleted";
+  coins?: number;
+  xp?: number;
+  level?: number;
+  callCount?: number;
+  rating?: {
+    average: number;
+    count: number;
+  };
+  favs?: string[]; // These will come as string IDs from backend
+  blocked?: string[];
+  topics?: string[];
+  clubs?: string[];
+  role?: "user" | "moderator" | "admin";
+  createdAt?: string;
+  updatedAt?: string;
 }

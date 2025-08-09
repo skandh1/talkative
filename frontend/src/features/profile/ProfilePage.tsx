@@ -9,7 +9,7 @@ import { toast } from 'react-toastify';
 export const ProfilePage: React.FC = () => {
   // Get the identifier from the URL, which can be an _id or a username
   const { identifier } = useParams<{ identifier?: string }>();
-  
+
 
   const [isEditing, setIsEditing] = useState(false);
   const { dbUser } = useAuth();
@@ -130,10 +130,10 @@ export const ProfilePage: React.FC = () => {
             <div className="space-y-4">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Account Stats</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {isOwner && <StatCard label="Coins" value={displayUser.coins} />}
-                <StatCard label="Rating" value={displayUser.rating} />
-                <StatCard label="Calls" value={displayUser.callCount} />
-                {isOwner && <StatCard label="Friends" value={displayUser.friends?.length} />}
+                {isOwner && <StatCard label="Coins" value={displayUser.coins ?? 0} />}
+                <StatCard label="Rating" value={displayUser.rating?.average ?? 0} />
+                <StatCard label="Calls" value={displayUser.callCount ?? 0} />
+                {isOwner && <StatCard label="favs" value={displayUser.favs?.length ?? 0} />}
               </div>
             </div>
 
