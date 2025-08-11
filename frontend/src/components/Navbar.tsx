@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, Coins, User } from 'lucide-react';
 import ThemeToggleButton from './ThemeToggleButton';
 import { useAuth } from '@/contexts/AuthContext';
-import { auth } from '@/firebase/firebase';
+import { auth, db } from '@/firebase/firebase';
+import { ref, serverTimestamp, set } from 'firebase/database';
 
 const Navbar: React.FC = () => {
   const { currentUser, dbUser } = useAuth();
@@ -24,6 +25,10 @@ const Navbar: React.FC = () => {
 
   const handleLogout = async () => {
     try {
+      if (dbUser) {
+        const userStatusDatabaseRef = ref(db, '/status/' + dbUser.uid);
+        await set(userStatusDatabaseRef, { isOnline: false, lastActive: serverTimestamp() });
+      }
       await auth.signOut();
       navigate('/');
     } catch (error) {

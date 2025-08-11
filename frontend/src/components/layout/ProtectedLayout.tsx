@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { User } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import { useDebounce } from 'use-debounce';
+import { useUserPresence } from '@/hooks/useUserPresence';
 
 
 const UsernamePrompt = () => {
@@ -50,6 +51,8 @@ const UsernamePrompt = () => {
       toast.error('Username cannot be empty.');
     }
   };
+
+
 
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
@@ -103,7 +106,7 @@ const UsernamePrompt = () => {
 
 const ProtectedLayout = () => {
   const { currentUser, showUsernamePrompt } = useAuth();
-  
+  useUserPresence()
   if (!currentUser) {
     return <Navigate to="/auth" />;
   }
@@ -112,6 +115,7 @@ const ProtectedLayout = () => {
   if (showUsernamePrompt) {
     return <UsernamePrompt />;
   }
+  
 
   // Otherwise, render the nested protected routes
   return <Outlet />;

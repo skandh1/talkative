@@ -5,8 +5,8 @@ export type Gender = "male" | "female" | "other" | "prefer_not_to-say";
 export type ProfileStatus = "active" | "inactive" | "banned" | "deleted";
 
 export interface IUser extends Document {
- _id: Types.ObjectId;
-
+  _id: Types.ObjectId;
+  uid: string;
   username?: string;
   displayName?: string;
   email: string;
@@ -23,6 +23,9 @@ export interface IUser extends Document {
   hasSetUsername?: boolean;
   usernameLastUpdatedAt?: Date;
   isOnline?: boolean;
+  showOnlineStatus?: boolean;
+  lastActive: Date;
+  
 
   profileStatus?: "active" | "inactive" | "banned" | "deleted";
 
@@ -49,8 +52,9 @@ export interface IUser extends Document {
 
 const UserSchema: Schema<IUser> = new Schema<IUser>(
   {
-      username: { type: String, unique: true, sparse: true, lowercase: true },
+    username: { type: String, unique: true, sparse: true, lowercase: true },
     displayName: { type: String },
+    uid: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true, lowercase: true },
     profilePic: { type: String, default: "" },
     about: { type: String, default: "" },
@@ -68,6 +72,8 @@ const UserSchema: Schema<IUser> = new Schema<IUser>(
     hasSetUsername: { type: Boolean, default: false },
     usernameLastUpdatedAt: { type: Date },
     isOnline: { type: Boolean, default: false },
+    showOnlineStatus: { type: Boolean, default: true }, // privacy toggle
+    lastActive: { type: Date, default: Date.now },
 
     profileStatus: {
       type: String,

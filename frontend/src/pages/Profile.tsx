@@ -1,76 +1,57 @@
-import React, { useState, useEffect } from 'react';
-import { type User } from '../types/user'; // CORRECT: Import frontend type
-import { fetchUserProfile, updateUserProfile } from '../lib/userApi';
-import { ProfileHeader } from '../components/profile/ProfileHeader';
-import { ProfileForm } from '../components/profile/ProfileForm';
-import { Loader2 } from 'lucide-react';
+// src/pages/ProfilePage.tsx
+import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { getAuth } from 'firebase/auth';
+import UserProfile from '../components/userProfile';
 
-const Profile: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null); // Use frontend User type
-  // ... rest of the component logic remains the same
-  const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const currentUserId = 'user123'; 
+const Profile = () => {
+  const { identifier: username } = useParams<{ identifier?: string }>();
+  const [userProfile, setUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const auth = getAuth();
 
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
+    const fetchUserProfile = async () => {
       try {
-        const userData = await fetchUserProfile(currentUserId);
-        setUser(userData);
+        // Get current user's ID token
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('User not authenticated');
+        }
+        
+        const token = await currentUser.getIdToken();
+        
+        const response = await fetch(
+          `http://localhost:5000/api/users/username/${username}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch user profile');
+        }
+
+        const data = await response.json();
+        setUserProfile(data);
       } catch (error) {
-        console.error("Failed to fetch user profile", error);
+        console.error('Error fetching profile:', error);
+        // Handle error (e.g., show error message)
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
-    loadData();
-  }, [currentUserId]);
+    
+    fetchUserProfile();
+  }, [username, auth]);
 
-  const handleSave = async (updatedData: Partial<User>) => { // Use frontend User type
-    if (!user) return;
-    setIsSaving(true);
-    try {
-      const updatedUser = await updateUserProfile(user.id, updatedData);
-      setUser(updatedUser);
-      setIsEditing(false);
-    } catch (error) {
-      console.error("Failed to update profile", error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  if (loading) return <div>Loading......</div>;
+  if (!userProfile) return <div>User not found.</div>;
 
-  // ... the rest of the JSX remains the same
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <div className="text-center py-10">User not found.</div>;
-  }
-
-  return (
-    <div className="container mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
-      <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl overflow-hidden">
-        <ProfileHeader user={user} onEdit={() => setIsEditing(true)} isEditing={isEditing} />
-        <div className="p-6">
-          <ProfileForm
-            user={user}
-            isEditing={isEditing}
-            onSave={handleSave}
-            onCancel={() => setIsEditing(false)}
-            isSaving={isSaving}
-          />
-        </div>
-      </div>
-    </div>
-  );
+  return <UserProfile profile={userProfile} />;
 };
 
 export default Profile;

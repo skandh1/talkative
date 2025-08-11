@@ -132,6 +132,7 @@ export const syncUserController = async (req: Request, res: Response) => {
       { email: decodedToken.email },
       {
         $setOnInsert: {
+          uid: decodedToken.uid,
           email: decodedToken.email,
           displayName:
             displayName || decodedToken.name || decodedToken.email.split("@")[0],

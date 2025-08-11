@@ -29,6 +29,7 @@ const queryClient = new QueryClient();
 const LoadingSpinner: React.FC = () => <div className="text-center p-8">Loading...</div>;
 
 const App: React.FC = () => {
+  
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
@@ -57,7 +58,7 @@ const App: React.FC = () => {
                     <Route element={<ProtectedLayout />}>
                       <Route path="dashboard" element={<Dashboard />} />
                       <Route path="home" element={<Home />} />
-                      <Route path="profile" element={<Profile />} />
+                      <Route path="check/:identifier" element={<Profile />} />
                       <Route path="clubs" element={<Clubs />} />
                       <Route path="explore" element={<Explore />} />
                       <Route path="settings" element={<Settings />} />

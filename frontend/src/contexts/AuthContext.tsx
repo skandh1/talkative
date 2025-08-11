@@ -16,6 +16,7 @@ import {
 import { auth, googleProvider } from '../firebase/firebase';
 import { type User as DBUser } from '../types/user';
 
+
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   dbUser: DBUser | null;
@@ -104,12 +105,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
         body: JSON.stringify({ username: newUsername }),
       });
-      
+
       const result = await response.json();
       if (!response.ok) {
         throw new Error(result.error || 'Failed to set username.');
       }
-      
+
       setDbUser(result.user);
       setShowUsernamePrompt(false);
     } catch (error) {
@@ -157,16 +158,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithEmail = async (email: string, password: string) => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      
+
       await userCredential.user.reload();
+
 
       if (!userCredential.user.emailVerified) {
         await signOut(auth);
         throw new Error('Please verify your email address to log in.');
       }
-      
+
       await syncUser(userCredential.user);
-      
+
     } catch (error) {
       console.error('Email login failed:', error);
       throw error;
@@ -182,7 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
   };
-  
+
   const sendPasswordlessLink = async (email: string) => {
     try {
       await sendSignInLinkToEmail(auth, email, actionCodeSettings);

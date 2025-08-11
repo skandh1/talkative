@@ -1,6 +1,7 @@
 // frontend/types/User.ts
 export interface User {
   _id?: string;
+  uid: string;
   email: string;
   username?: string;
   displayName?: string;
@@ -15,6 +16,8 @@ export interface User {
   hasSetUsername?: boolean;
   usernameLastUpdatedAt?: string;
   isOnline?: boolean;
+  showOnlineStatus?: boolean;
+  lastActive: Date;
   profileStatus?: "active" | "inactive" | "banned" | "deleted";
   coins?: number;
   xp?: number;
