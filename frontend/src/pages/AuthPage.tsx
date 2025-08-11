@@ -1,6 +1,6 @@
 // src/pages/AuthPage.js
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Mail, Lock, User } from 'lucide-react';
@@ -11,30 +11,32 @@ import { useDebounce } from 'use-debounce';
 const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [username, setUsername] = useState(''); // New state for username input
   const [isSignUp, setIsSignUp] = useState(false);
   const [usernameForPrompt, setUsernameForPrompt] = useState('');
   const [isUsernameAvailable, setIsUsernameAvailable] = useState(true);
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
-  
-  const { 
-    loginWithEmail, 
-    signupWithEmail, 
-    resetPassword, 
-    loginWithGoogle, 
-    showUsernamePrompt, 
-    completeGoogleSignup, 
+  const [isPasswordless, setIsPasswordless] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
+  const [emailVerificationSent, setEmailVerificationSent] = useState(false);
+
+  const {
+    loginWithEmail,
+    signupWithEmail,
+    resetPassword,
+    loginWithGoogle,
+    showUsernamePrompt,
+    completeGoogleSignup,
     currentUser,
     dbUser,
     checkUsername,
+    sendPasswordlessLink,
   } = useAuth();
   const navigate = useNavigate();
 
-  const [debouncedUsername] = useDebounce(username, 500);
+  const [debouncedUsername] = useDebounce(usernameForPrompt, 500);
 
   useEffect(() => {
-    if (isSignUp && debouncedUsername) {
+    if (showUsernamePrompt && debouncedUsername) {
       const validateUsername = async () => {
         setIsCheckingUsername(true);
         const available = await checkUsername(debouncedUsername);
@@ -46,8 +48,8 @@ const AuthPage = () => {
       };
       validateUsername();
     }
-  }, [isSignUp, debouncedUsername, checkUsername]);
-  
+  }, [showUsernamePrompt, debouncedUsername, checkUsername]);
+
   useEffect(() => {
     if (showUsernamePrompt && currentUser && !usernameForPrompt) {
       const suggestedName = currentUser.displayName || currentUser.email?.split('@')[0] || '';
@@ -63,33 +65,66 @@ const AuthPage = () => {
 
   const handleAuth = async (event) => {
     event.preventDefault();
-    if (isSignUp && (!isUsernameAvailable || isCheckingUsername)) {
-      if (!isUsernameAvailable) {
-        toast.error('Please choose an available username.');
+
+    if (isPasswordless) {
+      try {
+        await sendPasswordlessLink(email);
+        toast.success('Check your email for a login link!');
+        setLinkSent(true); 
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to send login link. Please try again.');
       }
       return;
     }
-    try {
-      if (isSignUp) {
-        await signupWithEmail(email, password, username, displayName);
-        toast.success('Account created successfully!');
-      } else {
-        await loginWithEmail(email, password);
-        toast.success('Logged in successfully!');
+    
+    if (isSignUp) {
+      try {
+        setEmailVerificationSent(true);
+        await signupWithEmail(email, password);
+        toast.success('Account created. Please check your email to verify and log in!');
+      } catch (err) {
+        console.error(err);
+        let errorMessage = 'An unexpected error occurred.';
+        if (err.code === 'auth/email-already-in-use') {
+          errorMessage = 'This email is already in use.';
+        } else if (err.code === 'auth/weak-password') {
+          errorMessage = 'Password should be at least 6 characters.';
+        } else if (err.message) {
+          errorMessage = err.message;
+        }
+        toast.error(errorMessage);
+        setEmailVerificationSent(false);
       }
+      return;
+    }
+
+    // Login logic
+    try {
+      await loginWithEmail(email, password);
+      toast.success('Logged in successfully!');
     } catch (err) {
       console.error(err);
       let errorMessage = 'An unexpected error occurred.';
       if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
         errorMessage = 'Invalid email or password.';
-      } else if (err.code === 'auth/email-already-in-use') {
-        errorMessage = 'This email is already in use.';
-      } else if (err.code === 'auth/weak-password') {
-        errorMessage = 'Password should be at least 6 characters.';
       } else if (err.message) {
         errorMessage = err.message;
       }
       toast.error(errorMessage);
+    }
+  };
+
+  const handleCompleteGoogleSignup = async (event) => {
+    event.preventDefault();
+    if (!isUsernameAvailable || isCheckingUsername) {
+      toast.error('Please choose an available username.');
+      return;
+    }
+    try {
+      await completeGoogleSignup(usernameForPrompt);
+    } catch (error) {
+      toast.error(error.message);
     }
   };
 
@@ -139,7 +174,7 @@ const AuthPage = () => {
           <h2 className="text-3xl font-bold text-center text-white mb-6">
             Choose Your Username
           </h2>
-          <form onSubmit={handleAuth} className="space-y-4">
+          <form onSubmit={handleCompleteGoogleSignup} className="space-y-4">
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               <input
@@ -148,14 +183,19 @@ const AuthPage = () => {
                 onChange={(e) => setUsernameForPrompt(e.target.value)}
                 placeholder="Enter your username"
                 required
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
+                className={`w-full pl-10 pr-4 py-3 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-colors ${isUsernameAvailable ? 'focus:ring-purple-500' : 'focus:ring-red-500'}`}
               />
             </div>
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-xl px-4 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              disabled={isCheckingUsername || !isUsernameAvailable}
+              className={`w-full text-white rounded-xl px-4 py-3 font-semibold shadow-lg transition-all duration-300 ${
+                isCheckingUsername || !isUsernameAvailable
+                  ? 'bg-gray-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 hover:shadow-xl transform hover:scale-105'
+              }`}
             >
-              Save Username
+              {isCheckingUsername ? 'Checking...' : 'Save Username'}
             </button>
           </form>
         </div>
@@ -163,24 +203,62 @@ const AuthPage = () => {
     );
   }
 
-  // Render the regular auth form
+  if (isPasswordless && linkSent) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <ToastContainer position="top-center" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover theme="dark" />
+        <div className="bg-gray-800 p-8 rounded-3xl shadow-2xl w-full max-w-md border border-gray-700 space-y-6">
+          <h2 className="text-3xl font-bold text-center text-white mb-6">
+            Check Your Email
+          </h2>
+          <p className="text-gray-400 text-center">
+            A secure login link has been sent to **{email}**. Please click the link to continue.
+          </p>
+          <button
+            onClick={() => {
+              setIsPasswordless(false);
+              setLinkSent(false);
+            }}
+            className="text-sm text-center text-gray-400 hover:text-white transition-colors w-full mt-4"
+          >
+            Back to login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isSignUp && emailVerificationSent) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <ToastContainer position="top-center" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover theme="dark" />
+        <div className="bg-gray-800 p-8 rounded-3xl shadow-2xl w-full max-w-md border border-gray-700 space-y-6">
+          <h2 className="text-3xl font-bold text-center text-white mb-6">
+            Verify Your Email
+          </h2>
+          <p className="text-gray-400 text-center">
+            An email verification link has been sent to **{email}**. Please click the link to verify your account and then log in.
+          </p>
+          <button
+            onClick={() => {
+              setEmailVerificationSent(false);
+              setIsSignUp(false);
+            }}
+            className="text-sm text-center text-gray-400 hover:text-white transition-colors w-full mt-4"
+          >
+            Back to login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      <ToastContainer
-        position="top-center"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="dark"
-      />
+      <ToastContainer position="top-center" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover theme="dark" />
       <div className="bg-gray-800 p-8 rounded-3xl shadow-2xl w-full max-w-md border border-gray-700 space-y-6">
         <h2 className="text-3xl font-bold text-center text-white mb-6">
-          {isSignUp ? 'Create an Account' : 'Welcome Back!'}
+          {isPasswordless ? 'Passwordless Login' : (isSignUp ? 'Create an Account' : 'Welcome Back!')}
         </h2>
         
         <form onSubmit={handleAuth} className="space-y-4">
@@ -195,58 +273,30 @@ const AuthPage = () => {
               className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
             />
           </div>
-          {isSignUp && (
-            <>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Display Name"
-                  required
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
-                />
-              </div>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Username (must be unique)"
-                  required
-                  className={`w-full pl-10 pr-4 py-3 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-colors ${isUsernameAvailable ? 'focus:ring-purple-500' : 'focus:ring-red-500'}`}
-                />
-              </div>
-            </>
-          )}
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              required
-              className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
-            />
-          </div>
           
+          {!isPasswordless && (
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                required
+                className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
+              />
+            </div>
+          )}
+
           <button
             type="submit"
-            disabled={isCheckingUsername || (isSignUp && !isUsernameAvailable)}
-            className={`w-full text-white rounded-xl px-4 py-3 font-semibold shadow-lg transition-all duration-300 ${
-              isCheckingUsername || (isSignUp && !isUsernameAvailable)
-                ? 'bg-gray-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 hover:shadow-xl transform hover:scale-105'
-            }`}
+            className="w-full text-white rounded-xl px-4 py-3 font-semibold shadow-lg transition-all duration-300 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 hover:shadow-xl transform hover:scale-105"
           >
-            {isCheckingUsername ? 'Checking...' : (isSignUp ? 'Sign Up' : 'Log In')}
+            {isSignUp ? 'Sign Up' : (isPasswordless ? 'Send Login Link' : 'Log In')}
           </button>
         </form>
 
-        {!isSignUp && (
+        {!isSignUp && !isPasswordless && (
           <button
             onClick={handleResetPassword}
             className="text-sm text-purple-400 hover:text-purple-300 transition-colors text-center w-full"
@@ -288,12 +338,27 @@ const AuthPage = () => {
 
         <button
           onClick={() => {
-            setIsSignUp(!isSignUp);
+            if (isPasswordless) {
+              setIsPasswordless(false);
+              setEmailVerificationSent(false);
+            } else {
+              setIsSignUp(!isSignUp);
+              setLinkSent(false);
+            }
           }}
           className="text-sm text-center text-gray-400 hover:text-white transition-colors w-full"
         >
-          {isSignUp ? 'Already have an account? Log In' : 'Need an account? Sign Up'}
+          {isSignUp ? 'Already have an account? Log In' : (isPasswordless ? 'Back to Login' : 'Need an account? Sign Up')}
         </button>
+        
+        {!isSignUp && !isPasswordless && (
+          <button
+            onClick={() => setIsPasswordless(true)}
+            className="text-sm text-center text-purple-400 hover:text-white transition-colors w-full mt-2"
+          >
+            Or, sign in with a magic link
+          </button>
+        )}
       </div>
     </div>
   );

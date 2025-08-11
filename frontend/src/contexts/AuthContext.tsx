@@ -8,10 +8,13 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
+  sendEmailVerification,
 } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase/firebase';
 import { type User as DBUser } from '../types/user';
-
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -19,13 +22,14 @@ interface AuthContextType {
   setDbUser: React.Dispatch<React.SetStateAction<DBUser | null>>;
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
-  signupWithEmail: (email: string, password: string, username: string, displayName: string) => Promise<void>;
+  signupWithEmail: (email: string, password: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   getToken: () => Promise<string>;
   showUsernamePrompt: boolean;
-  completeGoogleSignup: (newUsername: string) => Promise<void>; // Renamed to be more specific
-  checkUsername: (username: string) => Promise<boolean>; // New function to check username availability
+  completeGoogleSignup: (newUsername: string) => Promise<void>;
+  checkUsername: (username: string) => Promise<boolean>;
+  sendPasswordlessLink: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -40,7 +44,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
 
-  // New function to check for username availability on the backend
+  const actionCodeSettings = {
+    url: 'http://localhost:5173/auth',
+    handleCodeInApp: true,
+  };
+
   const checkUsername = async (username: string) => {
     try {
       const response = await fetch(`http://localhost:5000/api/auth/check-username?username=${username}`);
@@ -52,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const syncUser = async (firebaseUser: FirebaseUser | null, usernameFromSignup?: string, getEmailDisplayName?: string) => {
+  const syncUser = async (firebaseUser: FirebaseUser | null) => {
     if (!firebaseUser) {
       setDbUser(null);
       return;
@@ -60,12 +68,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const idToken = await firebaseUser.getIdToken();
-      
       const userData = {
         isFirstLogin: firebaseUser.metadata.creationTime === firebaseUser.metadata.lastSignInTime,
-        displayName: getEmailDisplayName || firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+        displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
         photoURL: firebaseUser.photoURL || '',
-        username: usernameFromSignup, // Pass the username for email signups
       };
 
       const response = await fetch('http://localhost:5000/api/auth/sync-user', {
@@ -79,22 +85,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const dbUserData = await response.json();
       setDbUser(dbUserData.user);
-      
-      // If the user has not set their username yet, show the prompt
       setShowUsernamePrompt(!dbUserData.user?.hasSetUsername);
-
     } catch (error) {
       console.error('User sync failed:', error);
       setDbUser(null);
     }
   };
-  
-  // This new function handles a Google-logged-in user setting their username for the first time
+
   const completeGoogleSignup = async (newUsername: string) => {
     if (!currentUser) return;
     try {
       const idToken = await currentUser.getIdToken();
-      
       const response = await fetch('http://localhost:5000/api/auth/set-username', {
         method: 'POST',
         headers: {
@@ -111,7 +112,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       setDbUser(result.user);
       setShowUsernamePrompt(false);
-
     } catch (error) {
       console.error('Failed to complete new user setup:', error);
       throw error;
@@ -142,15 +142,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!currentUser) throw new Error('No user logged in');
     return await currentUser.getIdToken(true);
   };
-  
-  // The signupWithEmail function now requires a username
-  const signupWithEmail = async (email: string, password: string, username: string, displayName: string) => {
+
+  const signupWithEmail = async (email: string, password: string) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      if (userCredential.user) {
-        // Sync the user with our backend, sending the username and display name.
-        await syncUser(userCredential.user, username, displayName);
-      }
+      await sendEmailVerification(userCredential.user);
+      await signOut(auth);
     } catch (error) {
       console.error('Email signup failed:', error);
       throw error;
@@ -160,7 +157,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithEmail = async (email: string, password: string) => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      await userCredential.user.reload();
+
+      if (!userCredential.user.emailVerified) {
+        await signOut(auth);
+        throw new Error('Please verify your email address to log in.');
+      }
+      
       await syncUser(userCredential.user);
+      
     } catch (error) {
       console.error('Email login failed:', error);
       throw error;
@@ -176,14 +182,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
   };
+  
+  const sendPasswordlessLink = async (email: string) => {
+    try {
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      window.localStorage.setItem('emailForSignIn', email);
+      console.log('Passwordless login email sent successfully.');
+    } catch (error) {
+      console.error('Failed to send passwordless login email:', error);
+      throw error;
+    }
+  };
 
   useEffect(() => {
+    const handleEmailLinkSignIn = async () => {
+      if (isSignInWithEmailLink(auth, window.location.href)) {
+        const email = window.localStorage.getItem('emailForSignIn');
+        if (email) {
+          try {
+            await signInWithEmailLink(auth, email, window.location.href);
+            window.localStorage.removeItem('emailForSignIn');
+          } catch (error) {
+            console.error('Email link sign-in failed:', error);
+          }
+        }
+      }
+    };
+    handleEmailLinkSignIn();
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        // Check if the user exists in our DB and if they have a username
+      if (user && user.emailVerified) {
+        setCurrentUser(user);
         await syncUser(user);
       } else {
+        setCurrentUser(null);
         setDbUser(null);
         setShowUsernamePrompt(false);
       }
@@ -206,6 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     showUsernamePrompt,
     completeGoogleSignup,
     checkUsername,
+    sendPasswordlessLink,
   };
 
   return (
