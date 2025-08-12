@@ -8,8 +8,6 @@ dotenv.config();
 import userRoutes from './routes/userRoutes';
 import authRoutes from './routes/authRoutes';
 
-// Load environment variables
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -22,12 +20,17 @@ app.use(cors({
 // Middleware
 app.use(express.json());
 
-// Security Headers
+// Enhanced Security Headers
 app.use((req, res, next) => {
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  // Relax COOP for Firebase Auth to work properly
+  res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
+  
+  // Keep other security headers
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  
   next();
 });
-
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -45,7 +48,5 @@ const startServer = async () => {
     process.exit(1);
   }
 };
-
-console.log("hii")
 
 startServer();

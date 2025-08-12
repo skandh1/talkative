@@ -1,27 +1,32 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import {
-  type User as FirebaseUser,
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail,
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink,
-  sendEmailVerification,
-} from 'firebase/auth';
-import { auth, googleProvider } from '../firebase/firebase';
+import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import { type User as FirebaseUser, onAuthStateChanged, type UserCredential } from 'firebase/auth';
+import { auth } from '../firebase/firebase';
 import { type User as DBUser } from '../types/user';
 
+import {
+  loginWithGoogle,
+  logoutUser,
+  signupWithEmail,
+  loginWithEmail as loginEmailFn,
+  resetPassword as resetPasswordFn,
+  sendPasswordlessLink as sendPasswordlessFn,
+  isEmailSignInLink,
+  signInWithEmailLinkFn,
+  getUserToken
+} from '../services/authServices';
+
+import {
+  checkUsername,
+  syncUser,
+  setUsername
+} from '../services/userServices';
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   dbUser: DBUser | null;
   setDbUser: React.Dispatch<React.SetStateAction<DBUser | null>>;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: () => Promise<UserCredential>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
   signupWithEmail: (email: string, password: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -35,9 +40,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
+export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
@@ -46,167 +49,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
 
   const actionCodeSettings = {
-    url: 'http://localhost:5173/auth',
+    url: import.meta.env.VITE_FRONTEND_URL + '/auth',
     handleCodeInApp: true,
-  };
-
-  const checkUsername = async (username: string) => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/auth/check-username?username=${username}`);
-      const data = await response.json();
-      return data.available;
-    } catch (error) {
-      console.error('Failed to check username:', error);
-      return false;
-    }
-  };
-
-  const syncUser = async (firebaseUser: FirebaseUser | null) => {
-    if (!firebaseUser) {
-      setDbUser(null);
-      return;
-    }
-
-    try {
-      const idToken = await firebaseUser.getIdToken();
-      const userData = {
-        isFirstLogin: firebaseUser.metadata.creationTime === firebaseUser.metadata.lastSignInTime,
-        displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
-        photoURL: firebaseUser.photoURL || '',
-      };
-
-      const response = await fetch('http://localhost:5000/api/auth/sync-user', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
-
-      const dbUserData = await response.json();
-      setDbUser(dbUserData.user);
-      setShowUsernamePrompt(!dbUserData.user?.hasSetUsername);
-    } catch (error) {
-      console.error('User sync failed:', error);
-      setDbUser(null);
-    }
   };
 
   const completeGoogleSignup = async (newUsername: string) => {
     if (!currentUser) return;
-    try {
-      const idToken = await currentUser.getIdToken();
-      const response = await fetch('http://localhost:5000/api/auth/set-username', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username: newUsername }),
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to set username.');
-      }
-
-      setDbUser(result.user);
-      setShowUsernamePrompt(false);
-    } catch (error) {
-      console.error('Failed to complete new user setup:', error);
-      throw error;
-    }
-  };
-
-  const loginWithGoogle = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error('Google login failed:', error);
-      throw error;
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await signOut(auth);
-      setCurrentUser(null);
-      setDbUser(null);
-    } catch (error) {
-      console.error('Logout failed:', error);
-      throw error;
-    }
-  };
-
-  const getToken = async () => {
-    if (!currentUser) throw new Error('No user logged in');
-    return await currentUser.getIdToken(true);
-  };
-
-  const signupWithEmail = async (email: string, password: string) => {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await sendEmailVerification(userCredential.user);
-      await signOut(auth);
-    } catch (error) {
-      console.error('Email signup failed:', error);
-      throw error;
-    }
+    const result = await setUsername(currentUser, newUsername);
+    setDbUser(result.user);
+    setShowUsernamePrompt(false);
   };
 
   const loginWithEmail = async (email: string, password: string) => {
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-
-      await userCredential.user.reload();
-
-
-      if (!userCredential.user.emailVerified) {
-        await signOut(auth);
-        throw new Error('Please verify your email address to log in.');
-      }
-
-      await syncUser(userCredential.user);
-
-    } catch (error) {
-      console.error('Email login failed:', error);
-      throw error;
+    const userCredential = await loginEmailFn(email, password);
+    await userCredential.user.reload();
+    if (!userCredential.user.emailVerified) {
+      await logoutUser();
+      throw new Error('Please verify your email address to log in.');
     }
-  };
-
-  const resetPassword = async (email: string) => {
-    try {
-      await sendPasswordResetEmail(auth, email);
-      console.log('Password reset email sent successfully.');
-    } catch (error) {
-      console.error('Password reset failed:', error);
-      throw error;
-    }
+    const dbUserData = await syncUser(userCredential.user);
+    setDbUser(dbUserData.user);
   };
 
   const sendPasswordlessLink = async (email: string) => {
-    try {
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-      window.localStorage.setItem('emailForSignIn', email);
-      console.log('Passwordless login email sent successfully.');
-    } catch (error) {
-      console.error('Failed to send passwordless login email:', error);
-      throw error;
-    }
+    await sendPasswordlessFn(email, actionCodeSettings);
+    window.localStorage.setItem('emailForSignIn', email);
   };
 
   useEffect(() => {
     const handleEmailLinkSignIn = async () => {
-      if (isSignInWithEmailLink(auth, window.location.href)) {
+      if (isEmailSignInLink(window.location.href)) {
         const email = window.localStorage.getItem('emailForSignIn');
         if (email) {
-          try {
-            await signInWithEmailLink(auth, email, window.location.href);
-            window.localStorage.removeItem('emailForSignIn');
-          } catch (error) {
-            console.error('Email link sign-in failed:', error);
-          }
+          await signInWithEmailLinkFn(email, window.location.href);
+          window.localStorage.removeItem('emailForSignIn');
         }
       }
     };
@@ -215,7 +91,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user && user.emailVerified) {
         setCurrentUser(user);
-        await syncUser(user);
+        try {
+          const dbUserData = await syncUser(user);
+          setDbUser(dbUserData.user);
+          setShowUsernamePrompt(!dbUserData.user?.hasSetUsername);
+        } catch {
+          setDbUser(null);
+        }
       } else {
         setCurrentUser(null);
         setDbUser(null);
@@ -227,21 +109,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
-  const value: AuthContextType = {
+  const value = useMemo<AuthContextType>(() => ({
     currentUser,
     dbUser,
     setDbUser,
-    loginWithGoogle,
+    loginWithGoogle: () => loginWithGoogle(),
     loginWithEmail,
-    signupWithEmail,
-    resetPassword,
-    logout,
-    getToken,
+    signupWithEmail: (email, password) => signupWithEmail(email, password),
+    resetPassword: (email) => resetPasswordFn(email),
+    logout: () => logoutUser(),
+    getToken: async () => {
+      if (!currentUser) throw new Error('No user logged in');
+      return getUserToken(currentUser);
+    },
     showUsernamePrompt,
     completeGoogleSignup,
     checkUsername,
-    sendPasswordlessLink,
-  };
+    sendPasswordlessLink
+  }), [currentUser, dbUser, showUsernamePrompt]);
 
   return (
     <AuthContext.Provider value={value}>

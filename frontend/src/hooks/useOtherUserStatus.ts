@@ -20,7 +20,7 @@ export const useOtherUserStatus = (userId: string | undefined, showOnlineStatus:
     }
     
     const userStatusRef = ref(db, '/status/' + userId);
-    console.log(userStatusRef)
+    // console.log(userStatusRef)
 
     // Listen for changes to the other user's status
     const unsubscribe = onValue(userStatusRef, (snapshot) => {

@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ProfileForm } from './components/ProfileForm';
 import { useUserProfile } from './hooks/useUserProfile';
 import { Button } from "../../components/ui/button";
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useOtherUserStatus } from '@/hooks/useOtherUserStatus';
 import UserInfoDisplay from './components/UserInfoDisplay';
@@ -15,11 +15,17 @@ export const ProfilePage: React.FC = () => {
   const { identifier } = useParams<{ identifier?: string }>();
   const [isEditing, setIsEditing] = useState(false);
   const { dbUser } = useAuth();
-  const { updateProfile, user, isUpdating } = useUserProfile(identifier);
+  const { updateProfile, user, isUpdating, isError, error } = useUserProfile(identifier);
+  const navigate = useNavigate();
 
-  const displayUser = user || dbUser;
+  const displayUser = user;
   // Use the new hook to get the real-time status
   const status = useOtherUserStatus(displayUser?.uid, displayUser?.showOnlineStatus);
+  
+  if (isError && error?.message.includes('404')) {
+    return <div className="text-center p-10 text-red-500 dark:text-red-400">User not found.</div>;
+  }
+
 
   if (!displayUser) {
     return <div className="text-center p-10 text-gray-700 dark:text-gray-300">Loading profile...</div>;
@@ -29,15 +35,27 @@ export const ProfilePage: React.FC = () => {
 
   const handleUpdateSubmit = (data: Partial<typeof displayUser>) => {
     updateProfile(data, {
-      onSuccess: () => {
+      onSuccess: (updatedUser) => {
         setIsEditing(false);
         toast.success("Profile updated successfully! ✅");
+
+        // Check if the username was updated
+        if (updatedUser.username !== displayUser.username) {
+          // If the username changed, navigate to the new URL
+          navigate(`/profile/${updatedUser.username}`, { replace: true });
+        }
       },
       onError: (error) => {
         toast.error(error.message || "Failed to update profile.");
       }
     });
   };
+
+  if (!user) {
+    // This case might be covered by the isError check, but it's good to have as a fallback.
+    return <div className="text-center p-10 text-gray-700 dark:text-gray-300">Something went wrong.</div>;
+  }
+
 
   return (
     <div className="bg-gray-50 dark:bg-gray-900 min-h-screen p-4 sm:p-6 lg:p-8 flex items-center justify-center">

@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { type User, type Gender } from '../../types/user' // Adjust path
+import React, { useState, useEffect, useCallback } from 'react';
+import { type User, type Gender } from '../../types/user';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input'; // Assuming custom components
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Save, X } from 'lucide-react';
 
+// Props definition
 interface ProfileFormProps {
   user: User;
   isEditing: boolean;
@@ -14,54 +15,66 @@ interface ProfileFormProps {
   onCancel: () => void;
 }
 
+// Ensure gender is always valid
 const safeGender = (gender?: Gender): Gender =>
   gender && ['male', 'female', 'other', 'prefer_not_to_say'].includes(gender)
     ? gender
     : 'prefer_not_to_say';
 
-
-// Editable fields from the user model
+// Editable subset of User
 type EditableUserData = {
   username: string;
   about: string;
-  age: number | string; // Use string for input compatibility
+  age: number | string;
   gender: Gender;
 };
 
-export const ProfileForm: React.FC<ProfileFormProps> = ({ user, isEditing, isSaving, onSave, onCancel }) => {
+export const ProfileForm: React.FC<ProfileFormProps> = ({
+  user,
+  isEditing,
+  isSaving,
+  onSave,
+  onCancel,
+}) => {
   const [formData, setFormData] = useState<EditableUserData>({
-    username: user.username || "",
-    about: user.about || '',
-    age: user.age || '',
-    gender: safeGender(user.gender)
+    username: user?.username ?? '',
+    about: user?.about ?? '',
+    age: user?.age ?? '',
+    gender: safeGender(user?.gender),
   });
 
-  // Reset form if user data changes or editing is cancelled
+  // Reset form data when user or edit mode changes
   useEffect(() => {
     setFormData({
-      username: user.username || "",
-      about: user.about || '',
-      age: user.age || '',
-      gender: safeGender(user.gender), // And here
+      username: user?.username ?? '',
+      about: user?.about ?? '',
+      age: user?.age ?? '',
+      gender: safeGender(user?.gender),
     });
   }, [user, isEditing]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  // Handlers
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    },
+    []
+  );
 
-  const handleGenderChange = (value: Gender) => {
-    setFormData({ ...formData, gender: value });
-  };
+  const handleGenderChange = useCallback((value: Gender) => {
+    setFormData((prev) => ({ ...prev, gender: value }));
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const dataToSave = {
-      ...formData,
-      age: Number(formData.age) || undefined, // Convert age back to number or undefined
-    };
-    onSave(dataToSave);
-  };
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      onSave({
+        ...formData,
+        age: formData.age === '' ? undefined : Number(formData.age),
+      });
+    },
+    [formData, onSave]
+  );
 
   // View Mode
   if (!isEditing) {
@@ -69,16 +82,21 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, isEditing, isSav
       <div className="space-y-6 text-sm text-gray-700 dark:text-gray-300">
         <div>
           <h3 className="font-semibold text-gray-900 dark:text-white mb-1">About Me</h3>
-          <p className="whitespace-pre-wrap">{user.about || 'No information provided.'}</p>
+          <p className="whitespace-pre-wrap">{user?.about || 'No information provided.'}</p>
         </div>
         <div>
           <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Topics of Interest</h3>
           <div className="flex flex-wrap gap-2">
-            {user.topics && user.topics.length > 0 ? user.topics.map(topic => (
-              <span key={topic} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300">
-                {topic}
-              </span>
-            )) : <p>No topics added.</p>}
+            {user?.topics?.length
+              ? user.topics.map((topic) => (
+                  <span
+                    key={topic}
+                    className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300"
+                  >
+                    {topic}
+                  </span>
+                ))
+              : <p>No topics added.</p>}
           </div>
         </div>
       </div>
@@ -89,11 +107,22 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, isEditing, isSav
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <FormField label="Username">
-        <Input name="username" value={formData.username} onChange={handleChange} placeholder="Your username" />
+        <Input
+          name="username"
+          value={formData.username}
+          onChange={handleChange}
+          placeholder="Your username"
+        />
       </FormField>
 
       <FormField label="About Me">
-        <Textarea name="about" value={formData.about} onChange={handleChange} rows={4} placeholder="Tell everyone a little about yourself..." />
+        <Textarea
+          name="about"
+          value={formData.about}
+          onChange={handleChange}
+          rows={4}
+          placeholder="Tell everyone a little about yourself..."
+        />
       </FormField>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -126,7 +155,11 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, isEditing, isSav
           <X className="mr-2 h-4 w-4" /> Cancel
         </Button>
         <Button type="submit" disabled={isSaving}>
-          {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+          {isSaving ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="mr-2 h-4 w-4" />
+          )}
           Save Changes
         </Button>
       </div>
@@ -134,10 +167,12 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, isEditing, isSav
   );
 };
 
-// A helper component for form fields
-const FormField = ({ label, children }: { label: string, children: React.ReactNode }) => (
+// Reusable form field wrapper
+const FormField = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div>
-    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{label}</label>
+    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+      {label}
+    </label>
     {children}
   </div>
 );

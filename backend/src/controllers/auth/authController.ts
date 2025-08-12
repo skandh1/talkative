@@ -136,7 +136,7 @@ export const syncUserController = async (req: Request, res: Response) => {
           email: decodedToken.email,
           displayName:
             displayName || decodedToken.name || decodedToken.email.split("@")[0],
-          profilePic: decodedToken.picture || "",
+          profilePic: "",
           coins: 0,
           callCount: 0,
           rating: {

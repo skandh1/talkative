@@ -70,18 +70,18 @@ export const updateMyProfile = async (req: Request, res: Response) => {
     // --- Username Change Logic ---
     if (username && username !== user.username) {
       // Check for the 24-hour cooldown
-      if (user.usernameLastUpdatedAt) {
-        const twentyFourHours = 24 * 60 * 60 * 1000;
-        const timeSinceLastUpdate = new Date().getTime() - user.usernameLastUpdatedAt.getTime();
+      // if (user.usernameLastUpdatedAt) {
+      //   const twentyFourHours = 24 * 60 * 60 * 1000;
+      //   const timeSinceLastUpdate = new Date().getTime() - user.usernameLastUpdatedAt.getTime();
 
-        if (timeSinceLastUpdate < twentyFourHours) {
-          const hoursLeft = Math.ceil((twentyFourHours - timeSinceLastUpdate) / (1000 * 60 * 60));
-          return res.status(403).json({
-            success: false,
-            message: `You can only change your username once every 24 hours. Please try again in ${hoursLeft}h.`,
-          });
-        }
-      }
+      //   if (timeSinceLastUpdate < twentyFourHours) {
+      //     const hoursLeft = Math.ceil((twentyFourHours - timeSinceLastUpdate) / (1000 * 60 * 60));
+      //     return res.status(403).json({
+      //       success: false,
+      //       message: `You can only change your username once every 24 hours. Please try again in ${hoursLeft}h.`,
+      //     });
+      //   }
+      // }
 
       const existingUser = await User.findOne({ username });
       // Important: Ensure the found user isn't the current user.
