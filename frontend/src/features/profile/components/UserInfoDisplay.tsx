@@ -3,7 +3,7 @@ import StatCard from "./StatCard";
 
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const UserInfoDisplay = ({ displayUser, isOwner, status }: { displayUser: User, isOwner: string | boolean | undefined, status: any}) => (
+const UserInfoDisplay = ({ displayUser, isOwner, status }: { displayUser: User, isOwner: string | boolean | undefined, status: any }) => (
   <div className="space-y-8">
     <div className="flex items-start md:items-center space-x-6 md:space-x-8 pb-6 border-b border-gray-200 dark:border-gray-700">
       <div className="relative">
@@ -60,7 +60,7 @@ const UserInfoDisplay = ({ displayUser, isOwner, status }: { displayUser: User, 
         {isOwner && <StatCard label="Coins" value={displayUser.coins ?? 0} />}
         <StatCard label="Rating" value={displayUser.rating?.average ?? 0} />
         <StatCard label="Calls" value={displayUser.callCount ?? 0} />
-        {isOwner && <StatCard label="favs" value={displayUser.favs?.length ?? 0} />}
+        {isOwner && <StatCard label="friends" value={displayUser.friends?.length ?? 0} />}
       </div>
     </div>
     <div className="space-y-4">

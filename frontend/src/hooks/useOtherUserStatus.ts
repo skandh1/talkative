@@ -9,7 +9,7 @@ interface UserStatus {
 }
 
 // This hook takes another user's ID and their privacy setting
-export const useOtherUserStatus = (userId: string | undefined, showOnlineStatus: boolean | undefined) => {
+export const  useOtherUserStatus = (userId: string | undefined, showOnlineStatus: boolean | undefined) => {
   const [status, setStatus] = useState<UserStatus>({ isOnline: false, lastActive: 0 });
 
   useEffect(() => {

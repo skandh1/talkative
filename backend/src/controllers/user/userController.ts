@@ -26,10 +26,10 @@ export const getUserProfile = async (req: Request, res: Response) => {
 
     // Check if the identifier is a valid MongoDB ObjectId
     if (mongoose.Types.ObjectId.isValid(identifier)) {
-      user = await User.findById(identifier).select('-email -favs -blocked');
+      user = await User.findById(identifier).select('-email -friends -blocked');
     } else {
       // Otherwise, assume it's a username
-      user = await User.findOne({ username: identifier }).select('-email -favs -blocked');
+      user = await User.findOne({ username: identifier }).select('-email -friends -blocked');
     }
 
     if (!user) {
@@ -142,7 +142,7 @@ export const getActiveUsers = async (req: Request, res: Response) => {
     const users = await User.find({ profileStatus: 'active' })
       .skip(skip)
       .limit(limit)
-      .select('-favs -blocked -favs -clubs'); // Exclude heavy fields
+      .select('-friends -blocked -friends -clubs'); // Exclude heavy fields
 
     const total = await User.countDocuments({ profileStatus: 'active' });
 
@@ -168,15 +168,15 @@ export const toggleFavorite = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const favIndex = user.favs.indexOf(new mongoose.Types.ObjectId(targetUserId));
+    const favIndex = user.friends.indexOf(new mongoose.Types.ObjectId(targetUserId));
     if (favIndex === -1) {
-      user.favs.push(targetUserId);
+      user.friends.push(targetUserId);
     } else {
-      user.favs.splice(favIndex, 1);
+      user.friends.splice(favIndex, 1);
     }
 
     await user.save();
-    res.json(user.favs);
+    res.json(user.friends);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }

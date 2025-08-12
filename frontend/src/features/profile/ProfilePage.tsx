@@ -20,7 +20,7 @@ export const ProfilePage: React.FC = () => {
 
   const displayUser = user;
   // Use the new hook to get the real-time status
-  const status = useOtherUserStatus(displayUser?.uid, displayUser?.showOnlineStatus);
+  const status = useOtherUserStatus(displayUser?.uid, displayUser?.settings.privacy.showOnlineStatus);
   
   if (isError && error?.message.includes('404')) {
     return <div className="text-center p-10 text-red-500 dark:text-red-400">User not found.</div>;

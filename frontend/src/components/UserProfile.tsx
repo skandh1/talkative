@@ -6,7 +6,7 @@ import { useOtherUserStatus } from '../hooks/useOtherUserStatus';
 const UserProfile = ({ profile}: { profile: any }) => {
   // profile.uid is the Firebase UID
   // profile.showOnlineStatus is the boolean from MongoDB
-  const status = useOtherUserStatus(profile.uid, profile.showOnlineStatus);
+  const status = useOtherUserStatus(profile.uid, profile.settings.privacy.showOnlineStatus);
 
   return (
     <div>
