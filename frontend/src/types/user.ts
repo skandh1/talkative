@@ -4,7 +4,7 @@ export type PremiumStatus = "free" | "premium" | "vip";
 export type SafetyLevel = "safe" | "under_review" | "restricted";
 export type Role = "user" | "moderator" | "admin";
 
-export interface IUser {
+export interface User {
   id: string; // plain string instead of ObjectId
   uid: string;
   username?: string;

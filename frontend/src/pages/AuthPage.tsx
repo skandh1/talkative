@@ -1,12 +1,13 @@
 // src/pages/AuthPage.js
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Mail, Lock, User } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useDebounce } from 'use-debounce';
+import { FirebaseError } from 'firebase/app';
 
 const AuthPage = () => {
   const [email, setEmail] = useState('');
@@ -63,21 +64,21 @@ const AuthPage = () => {
     }
   }, [currentUser, dbUser, showUsernamePrompt, navigate]);
 
-  const handleAuth = async (event) => {
+  const handleAuth = async (event: { preventDefault: () => void; }) => {
     event.preventDefault();
 
     if (isPasswordless) {
       try {
         await sendPasswordlessLink(email);
         toast.success('Check your email for a login link!');
-        setLinkSent(true); 
+        setLinkSent(true);
       } catch (err) {
         console.error(err);
         toast.error('Failed to send login link. Please try again.');
       }
       return;
     }
-    
+
     if (isSignUp) {
       try {
         setEmailVerificationSent(true);
@@ -86,11 +87,14 @@ const AuthPage = () => {
       } catch (err) {
         console.error(err);
         let errorMessage = 'An unexpected error occurred.';
-        if (err.code === 'auth/email-already-in-use') {
-          errorMessage = 'This email is already in use.';
-        } else if (err.code === 'auth/weak-password') {
-          errorMessage = 'Password should be at least 6 characters.';
-        } else if (err.message) {
+        if (err instanceof FirebaseError) {
+          if (err.code === 'auth/email-already-in-use') {
+            errorMessage = 'This email is already in use.';
+          } else if (err.code === 'auth/weak-password') {
+            errorMessage = 'Password should be at least 6 characters.';
+          }
+        }
+        if (err instanceof Error && err.message) {
           errorMessage = err.message;
         }
         toast.error(errorMessage);
@@ -106,16 +110,19 @@ const AuthPage = () => {
     } catch (err) {
       console.error(err);
       let errorMessage = 'An unexpected error occurred.';
-      if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-        errorMessage = 'Invalid email or password.';
-      } else if (err.message) {
+      if (err instanceof FirebaseError) {
+        if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+          errorMessage = 'Invalid email or password.';
+        }
+      }
+      if (err instanceof Error && err.message) {
         errorMessage = err.message;
       }
       toast.error(errorMessage);
     }
   };
 
-  const handleCompleteGoogleSignup = async (event) => {
+  const handleCompleteGoogleSignup = async (event: { preventDefault: () => void; }) => {
     event.preventDefault();
     if (!isUsernameAvailable || isCheckingUsername) {
       toast.error('Please choose an available username.');
@@ -123,11 +130,14 @@ const AuthPage = () => {
     }
     try {
       await completeGoogleSignup(usernameForPrompt);
-    } catch (error) {
-      toast.error(error.message);
+    } catch (err) {
+      if (err instanceof Error) {
+        toast.error(err.message);
+      } else {
+        toast.error('An unexpected error occurred.');
+      }
     }
   };
-
   const handleResetPassword = async () => {
     if (!email) {
       toast.error('Please enter your email address to reset the password.');
@@ -139,8 +149,10 @@ const AuthPage = () => {
     } catch (err) {
       console.error(err);
       let errorMessage = 'Failed to send password reset email. Please check the email address.';
-      if (err.code === 'auth/user-not-found') {
+      if (err instanceof FirebaseError && err.code === 'auth/user-not-found') {
         errorMessage = 'No user found with that email address.';
+      } else if (err instanceof Error && err.message) {
+        errorMessage = err.message;
       }
       toast.error(errorMessage);
     }
@@ -189,11 +201,10 @@ const AuthPage = () => {
             <button
               type="submit"
               disabled={isCheckingUsername || !isUsernameAvailable}
-              className={`w-full text-white rounded-xl px-4 py-3 font-semibold shadow-lg transition-all duration-300 ${
-                isCheckingUsername || !isUsernameAvailable
-                  ? 'bg-gray-500 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 hover:shadow-xl transform hover:scale-105'
-              }`}
+              className={`w-full text-white rounded-xl px-4 py-3 font-semibold shadow-lg transition-all duration-300 ${isCheckingUsername || !isUsernameAvailable
+                ? 'bg-gray-500 cursor-not-allowed'
+                : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 hover:shadow-xl transform hover:scale-105'
+                }`}
             >
               {isCheckingUsername ? 'Checking...' : 'Save Username'}
             </button>
@@ -260,7 +271,7 @@ const AuthPage = () => {
         <h2 className="text-3xl font-bold text-center text-white mb-6">
           {isPasswordless ? 'Passwordless Login' : (isSignUp ? 'Create an Account' : 'Welcome Back!')}
         </h2>
-        
+
         <form onSubmit={handleAuth} className="space-y-4">
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -273,7 +284,7 @@ const AuthPage = () => {
               className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
             />
           </div>
-          
+
           {!isPasswordless && (
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -350,7 +361,7 @@ const AuthPage = () => {
         >
           {isSignUp ? 'Already have an account? Log In' : (isPasswordless ? 'Back to Login' : 'Need an account? Sign Up')}
         </button>
-        
+
         {!isSignUp && !isPasswordless && (
           <button
             onClick={() => setIsPasswordless(true)}

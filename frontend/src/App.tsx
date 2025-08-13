@@ -12,6 +12,7 @@ import { ProfilePage } from './features/profile/ProfilePage';
 import { SearchPage } from './features/search/SearchPage';
 import AuthPage from './pages/AuthPage';
 import RedirectIfAuthenticated from './components/RedirectIfAuhtenticated'; 
+import SettingsPage from './features/settings/SettingsPage';
 
 // Lazy-loaded pages
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -20,7 +21,6 @@ const Home = lazy(() => import('./pages/Home'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Clubs = lazy(() => import('./pages/Clubs'));
 const Explore = lazy(() => import('./pages/Explore'));
-const Settings = lazy(() => import('./pages/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Query Client instance
@@ -61,7 +61,7 @@ const App: React.FC = () => {
                       <Route path="check/:identifier" element={<Profile />} />
                       <Route path="clubs" element={<Clubs />} />
                       <Route path="explore" element={<Explore />} />
-                      <Route path="settings" element={<Settings />} />
+                      <Route path="settings" element={<SettingsPage />} />
                       {/* The route now accepts a single, generic identifier */}
                       <Route path="profile/:identifier" element={<ProfilePage />} />
                       <Route path="me" element={<ProfilePage />} />
