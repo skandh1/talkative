@@ -27,7 +27,7 @@ export const updateProfileSchema = z.object({
     topics: z.array(z.string().max(30, 'Each topic must be 30 characters or less'))
       .max(15, 'You can have a maximum of 15 topics')
       .optional(),
-    
+
     displayName: z.string()
   }).strict(), // Prevents extra fields
 });

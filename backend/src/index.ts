@@ -7,6 +7,7 @@ dotenv.config();
 
 import userRoutes from './routes/userRoutes';
 import authRoutes from './routes/authRoutes';
+import settings from "./routes/settings.router"
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -34,6 +35,7 @@ app.use((req, res, next) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use("/api", settings)
 app.use('/api/users', userRoutes);
 
 // Database connection & server start
