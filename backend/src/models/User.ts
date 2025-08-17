@@ -1,70 +1,67 @@
-import mongoose, { Document, Schema, Model, Types } from "mongoose";
-import "./Club";
+import mongoose, { Schema, Document, Model } from "mongoose";
 
-export type Gender = "male" | "female" | "other" | "prefer_not_to_say";
-export type ProfileStatus = "active" | "inactive" | "banned" | "deleted";
-export type PremiumStatus = "free" | "premium" | "vip";
-export type SafetyLevel = "safe" | "under_review" | "restricted";
-export type Role = "user" | "moderator" | "admin";
-
-// Gift history sub-schema (if you already have GiftHistorySchema defined elsewhere, import instead)
+// ---- Gift History Schema (if already defined elsewhere, import it)
 const GiftHistorySchema = new Schema({
-  giftId: { type: String, required: true },
+  giftId: { type: String },
   fromUser: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   toUser: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   date: { type: Date, default: Date.now },
 });
 
+// ---- User Interface ----
 export interface IUser extends Document {
-  _id: Types.ObjectId;
-  uid: string;
-  username?: string;
+  username: string;
   displayName?: string;
+  uid: string;
   email: string;
-  profilePic?: string;
-  coverPhoto?: string;
-  about?: string;
+  profilePic: string;
+  coverPhoto: string;
+  about: string;
   age?: number;
-  gender?: Gender;
-  languages?: string[];
-  country?: string;
-  isVerified?: boolean;
-  hasSetUsername?: boolean;
+  gender: "male" | "female" | "other" | "prefer_not_to_say";
+  isVerified: boolean;
+  hasSetUsername: boolean;
   usernameLastUpdatedAt?: Date;
-  isOnline?: boolean;
-  lastActive?: Date;
+  isOnline: boolean;
+  lastActive: Date;
 
   settings: {
     privacy: {
-      isProfilePublic: boolean;
-      showOnlineStatus: boolean;
-      showLastActive: boolean;
-      hideAge: boolean;
-      hideLocation: boolean;
+      profileType: "public" | "private";
+      allowChatsFrom: "everyone" | "followers" | "friends" | "no_one";
+      allowFriendRequestsFrom: "everyone" | "followers" | "no_one";
+      allowFollowRequests: boolean;
+      whoCanViewAge: "everyone" | "friends" | "followers" | "no_one";
+      allowDirectCalls: boolean;
+      whoCanSeeOnlineStatus: "everyone" | "friends" | "followers" | "no_one";
+      whoCanSeeBio: "everyone" | "friends" | "followers" | "no_one";
     };
-    communication: {
-      allowFriendRequests: boolean;
-      allowChatRequests: boolean;
-      allowCalls: boolean;
-      allowGiftRequests: boolean;
+    notifications: {
+      friendRequests: boolean;
+      followRequests: boolean;
+      chats: boolean;
+      calls: boolean;
+      callEnd: boolean;
+      clubs: boolean;
+      posts: {
+        likes: boolean;
+        comments: boolean;
+      };
+      gifts: boolean;
     };
     preferences: {
       languages: string[];
       country: string;
-      matchDistance?: number;
+      matchDistance: number;
     };
     account: {
       theme: "light" | "dark" | "system";
-      notifications: {
-        chat: boolean;
-        calls: boolean;
-        gifts: boolean;
-      };
     };
   };
 
-  profileStatus: ProfileStatus;
-  safetyLevel: SafetyLevel;
+  profileStatus: "active" | "inactive" | "banned" | "deleted";
+  safetyLevel: "safe" | "under_review" | "restricted";
+
   coins: number;
   xp: number;
   level: number;
@@ -72,20 +69,31 @@ export interface IUser extends Document {
   achievements: string[];
   callCount: number;
   callMinutes: number;
-  premiumStatus: PremiumStatus;
-  giftHistory: any[];
-  rating: { average: number; count: number };
+  premiumStatus: "free" | "premium" | "vip";
+  giftHistory: typeof GiftHistorySchema[];
+
+  rating: {
+    average: number;
+    count: number;
+  };
+
   reportCount: number;
   interests: string[];
   topics: string[];
-  friends: Types.ObjectId[];
-  blocked: Types.ObjectId[];
-  blockedBy: Types.ObjectId[];
+
+  // relationships
+  friends: mongoose.Types.ObjectId[];
+  followers: mongoose.Types.ObjectId[];
+  following: mongoose.Types.ObjectId[];
+  blocked: mongoose.Types.ObjectId[];
+  blockedBy: mongoose.Types.ObjectId[];
+  clubs: mongoose.Types.ObjectId[];
+
   badges: string[];
-  clubs: Types.ObjectId[];
-  role: Role;
+  role: "user" | "moderator" | "admin";
 }
 
+// ---- Schema ----
 const UserSchema: Schema<IUser> = new Schema<IUser>(
   {
     username: { type: String, unique: true, sparse: true, lowercase: true },
@@ -109,29 +117,65 @@ const UserSchema: Schema<IUser> = new Schema<IUser>(
 
     settings: {
       privacy: {
-        isProfilePublic: { type: Boolean, default: true },
-        showOnlineStatus: { type: Boolean, default: true },
-        showLastActive: { type: Boolean, default: true },
-        hideAge: { type: Boolean, default: false },
-        hideLocation: { type: Boolean, default: false },
+        profileType: {
+          type: String,
+          enum: ["public", "private"],
+          default: "public",
+        },
+        allowChatsFrom: {
+          type: String,
+          enum: ["everyone", "followers", "friends", "no_one"],
+          default: "everyone",
+        },
+        allowFriendRequestsFrom: {
+          type: String,
+          enum: ["everyone", "followers", "no_one"],
+          default: "everyone",
+        },
+        allowFollowRequests: { type: Boolean, default: true },
+        whoCanViewAge: {
+          type: String,
+          enum: ["everyone", "friends", "followers", "no_one"],
+          default: "everyone",
+        },
+        allowDirectCalls: { type: Boolean, default: true },
+        whoCanSeeOnlineStatus: {
+          type: String,
+          enum: ["everyone", "friends", "followers", "no_one"],
+          default: "everyone",
+        },
+        whoCanSeeBio: {
+          type: String,
+          enum: ["everyone", "friends", "followers", "no_one"],
+          default: "everyone",
+        },
       },
-      communication: {
-        allowFriendRequests: { type: Boolean, default: true },
-        allowChatRequests: { type: Boolean, default: true },
-        allowCalls: { type: Boolean, default: true },
-        allowGiftRequests: { type: Boolean, default: true },
+
+      notifications: {
+        friendRequests: { type: Boolean, default: true },
+        followRequests: { type: Boolean, default: true },
+        chats: { type: Boolean, default: true },
+        calls: { type: Boolean, default: true },
+        callEnd: { type: Boolean, default: true },
+        clubs: { type: Boolean, default: true },
+        posts: {
+          likes: { type: Boolean, default: true },
+          comments: { type: Boolean, default: true },
+        },
+        gifts: { type: Boolean, default: true },
       },
+
       preferences: {
         languages: [{ type: String, default: "en" }],
         country: { type: String, default: "" },
-        matchDistance: { type: Number, default: 50 }, // in km or miles
+        matchDistance: { type: Number, default: 50 },
       },
+
       account: {
-        theme: { type: String, enum: ["light", "dark", "system"], default: "system" },
-        notifications: {
-          chat: { type: Boolean, default: true },
-          calls: { type: Boolean, default: true },
-          gifts: { type: Boolean, default: true },
+        theme: {
+          type: String,
+          enum: ["light", "dark", "system"],
+          default: "system",
         },
       },
     },
@@ -165,16 +209,21 @@ const UserSchema: Schema<IUser> = new Schema<IUser>(
       average: { type: Number, default: 0 },
       count: { type: Number, default: 0 },
     },
+
     reportCount: { type: Number, default: 0 },
 
     interests: [{ type: String }],
     topics: [{ type: String }],
+
+    // relationships
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     blocked: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     blockedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    badges: [{ type: String }],
     clubs: [{ type: mongoose.Schema.Types.ObjectId, ref: "Club" }],
 
+    badges: [{ type: String }],
     role: {
       type: String,
       enum: ["user", "moderator", "admin"],

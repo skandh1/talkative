@@ -64,6 +64,7 @@ export const useSettingsLogic = () => {
 
   const save = useCallback(async () => {
     if (!settings) return;
+    console.log(settings)
     setSaving(true);
     setError(null);
     try {

@@ -12,7 +12,7 @@ export const validate = (schema: ZodObject<any>) =>
     } catch (e: any) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid input data',
+        message: 'Invalid input dataaaa',
         errors: e.errors,
       });
     }

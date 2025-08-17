@@ -23,32 +23,38 @@ export interface User {
 
   settings: {
     privacy: {
-      isProfilePublic: boolean;
-      showOnlineStatus: boolean;
-      showLastActive: boolean;
-      hideAge: boolean;
-      hideLocation: boolean;
+      profileType: "public" | "private";
+      allowChatsFrom: "everyone" | "followers" | "friends" | "no_one";
+      allowFriendRequestsFrom: "everyone" | "followers" | "no_one";
+      allowFollowRequests: boolean;
+      whoCanViewAge: "everyone" | "friends" | "followers" | "no_one";
+      allowDirectCalls: boolean;
+      whoCanSeeOnlineStatus: "everyone" | "friends" | "followers" | "no_one";
+      whoCanSeeBio: "everyone" | "friends" | "followers" | "no_one";
     };
-    communication: {
-      allowFriendRequests: boolean;
-      allowChatRequests: boolean;
-      allowCalls: boolean;
-      allowGiftRequests: boolean;
+    notifications: {
+      friendRequests: boolean;
+      followRequests: boolean;
+      chats: boolean;
+      calls: boolean;
+      callEnd: boolean;
+      clubs: boolean;
+      posts: {
+        likes: boolean;
+        comments: boolean;
+      };
+      gifts: boolean;
     };
     preferences: {
       languages: string[];
       country: string;
-      matchDistance?: number;
+      matchDistance: number;
     };
     account: {
       theme: "light" | "dark" | "system";
-      notifications: {
-        chat: boolean;
-        calls: boolean;
-        gifts: boolean;
-      };
     };
   };
+
 
   profileStatus: ProfileStatus;
   safetyLevel: SafetyLevel;
@@ -74,6 +80,8 @@ export interface User {
   interests: string[];
   topics: string[];
   friends: string[]; // user IDs
+  followers: string[];
+  following: string[];
   blocked: string[];
   blockedBy: string[];
   badges: string[];

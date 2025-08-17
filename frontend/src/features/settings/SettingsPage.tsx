@@ -10,13 +10,14 @@ import {
   Save,
   RefreshCw,
   Eye,
-
   Phone,
   Gift,
   UserCheck,
   MapPin,
   Calendar,
-  Clock,
+  ThumbsUp,
+  MessageSquare,
+  Megaphone
 } from "lucide-react";
 import ISO6391 from 'iso-639-1';
 
@@ -31,15 +32,8 @@ import { MultiSelect } from "./components/MultiSelect";
 import { CountrySelect } from "./components/CountrySelect";
 import { BlockedUserItem } from "./components/BlockedUserItem";
 
+const LANGUAGES = ISO6391.getAllNames();
 
-// Country and Language data
-
-
-const LANGUAGES = ISO6391.getAllNames()
-
-
-
-// Main Settings Component
 export default function SettingsPage() {
   const {
     loading,
@@ -88,8 +82,8 @@ export default function SettingsPage() {
             <div className="p-6 space-y-1">
               <Select
                 label="Profile Visibility"
-                value={settings?.privacy?.isProfilePublic ? "public" : "private"}
-                onChange={(value) => handleToggle("privacy.isProfilePublic", value === "public")}
+                value={settings?.privacy?.profileType || "public"}
+                onChange={(value) => handleToggle("privacy.profileType", value)}
                 options={[
                   { value: "public", label: "Public" },
                   { value: "private", label: "Private" }
@@ -97,74 +91,82 @@ export default function SettingsPage() {
                 icon={Eye}
               />
 
-              <Toggle
-                label="Show Online Status"
-                checked={Boolean(settings?.privacy?.showOnlineStatus)}
-                onChange={(checked) => handleToggle("privacy.showOnlineStatus", checked)}
-                icon={Globe}
-                description="Let others see when you're online"
-              />
-
-              <Toggle
-                label="Show Last Active"
-                checked={Boolean(settings?.privacy?.showLastActive)}
-                onChange={(checked) => handleToggle("privacy.showLastActive", checked)}
-                icon={Clock}
-                description="Display when you were last active"
-              />
-
-              <Toggle
-                label="Hide Age"
-                checked={Boolean(settings?.privacy?.hideAge)}
-                onChange={(checked) => handleToggle("privacy.hideAge", checked)}
-                icon={Calendar}
-                description="Keep your age private"
-              />
-
-              <Toggle
-                label="Hide Location"
-                checked={Boolean(settings?.privacy?.hideLocation)}
-                onChange={(checked) => handleToggle("privacy.hideLocation", checked)}
-                icon={MapPin}
-                description="Don't show your location"
-              />
-            </div>
-          </Card>
-
-          {/* Communication Settings */}
-          <Card>
-            <CardHeader icon={MessageCircle} title="Communication" />
-            <div className="p-6 space-y-1">
-              <Toggle
-                label="Allow Friend Requests"
-                checked={Boolean(settings?.communication?.allowFriendRequests)}
-                onChange={(checked) => handleToggle("communication.allowFriendRequests", checked)}
-                icon={UserCheck}
-                description="Let others send you friend requests"
-              />
-
-              <Toggle
-                label="Allow Chat Requests"
-                checked={Boolean(settings?.communication?.allowChatRequests)}
-                onChange={(checked) => handleToggle("communication.allowChatRequests", checked)}
+              <Select
+                label="Who Can Message You"
+                value={settings?.privacy?.allowChatsFrom || "everyone"}
+                onChange={(value) => handleToggle("privacy.allowChatsFrom", value)}
+                options={[
+                  { value: "everyone", label: "Everyone" },
+                  { value: "followers", label: "Followers" },
+                  { value: "friends", label: "Friends" },
+                  { value: "no_one", label: "No One" }
+                ]}
                 icon={MessageCircle}
-                description="Receive messages from new people"
+              />
+
+              <Select
+                label="Who Can Send Friend Requests"
+                value={settings?.privacy?.allowFriendRequestsFrom || "everyone"}
+                onChange={(value) => handleToggle("privacy.allowFriendRequestsFrom", value)}
+                options={[
+                  { value: "everyone", label: "Everyone" },
+                  { value: "followers", label: "Followers" },
+                  { value: "no_one", label: "No One" }
+                ]}
+                icon={UserCheck}
               />
 
               <Toggle
-                label="Allow Calls"
-                checked={Boolean(settings?.communication?.allowCalls)}
-                onChange={(checked) => handleToggle("communication.allowCalls", checked)}
+                label="Allow Follow Requests"
+                checked={Boolean(settings?.privacy?.allowFollowRequests)}
+                onChange={(checked) => handleToggle("privacy.allowFollowRequests", checked)}
+                icon={Users}
+              />
+
+              <Select
+                label="Who Can See Your Age"
+                value={settings?.privacy?.whoCanViewAge || "everyone"}
+                onChange={(value) => handleToggle("privacy.whoCanViewAge", value)}
+                options={[
+                  { value: "everyone", label: "Everyone" },
+                  { value: "followers", label: "Followers" },
+                  { value: "friends", label: "Friends" },
+                  { value: "no_one", label: "No One" }
+                ]}
+                icon={Calendar}
+              />
+
+              <Toggle
+                label="Allow Direct Calls"
+                checked={Boolean(settings?.privacy?.allowDirectCalls)}
+                onChange={(checked) => handleToggle("privacy.allowDirectCalls", checked)}
                 icon={Phone}
-                description="Enable voice and video calls"
               />
 
-              <Toggle
-                label="Allow Gifts"
-                checked={Boolean(settings?.communication?.allowGiftRequests)}
-                onChange={(checked) => handleToggle("communication.allowGiftRequests", checked)}
-                icon={Gift}
-                description="Receive virtual gifts"
+              <Select
+                label="Who Can See Online Status"
+                value={settings?.privacy?.whoCanSeeOnlineStatus || "everyone"}
+                onChange={(value) => handleToggle("privacy.whoCanSeeOnlineStatus", value)}
+                options={[
+                  { value: "everyone", label: "Everyone" },
+                  { value: "followers", label: "Followers" },
+                  { value: "friends", label: "Friends" },
+                  { value: "no_one", label: "No One" }
+                ]}
+                icon={Globe}
+              />
+
+              <Select
+                label="Who Can See Your Bio"
+                value={settings?.privacy?.whoCanSeeBio || "everyone"}
+                onChange={(value) => handleToggle("privacy.whoCanSeeBio", value)}
+                options={[
+                  { value: "everyone", label: "Everyone" },
+                  { value: "followers", label: "Followers" },
+                  { value: "friends", label: "Friends" },
+                  { value: "no_one", label: "No One" }
+                ]}
+                icon={Shield}
               />
             </div>
           </Card>
@@ -198,23 +200,65 @@ export default function SettingsPage() {
             <CardHeader icon={Bell} title="Notifications" />
             <div className="p-6 space-y-1">
               <Toggle
+                label="Friend Request Notifications"
+                checked={Boolean(settings?.notifications?.friendRequests)}
+                onChange={(checked) => handleToggle("notifications.friendRequests", checked)}
+                icon={UserCheck}
+              />
+
+              <Toggle
+                label="Follow Request Notifications"
+                checked={Boolean(settings?.notifications?.followRequests)}
+                onChange={(checked) => handleToggle("notifications.followRequests", checked)}
+                icon={Users}
+              />
+
+              <Toggle
                 label="Chat Notifications"
-                checked={Boolean(settings?.account?.notifications?.chat)}
-                onChange={(checked) => handleToggle("account.notifications.chat", checked)}
+                checked={Boolean(settings?.notifications?.chats)}
+                onChange={(checked) => handleToggle("notifications.chats", checked)}
                 icon={MessageCircle}
               />
 
               <Toggle
                 label="Call Notifications"
-                checked={Boolean(settings?.account?.notifications?.calls)}
-                onChange={(checked) => handleToggle("account.notifications.calls", checked)}
+                checked={Boolean(settings?.notifications?.calls)}
+                onChange={(checked) => handleToggle("notifications.calls", checked)}
                 icon={Phone}
               />
 
               <Toggle
+                label="Call End Notifications"
+                checked={Boolean(settings?.notifications?.callEnd)}
+                onChange={(checked) => handleToggle("notifications.callEnd", checked)}
+                icon={Phone}
+              />
+
+              <Toggle
+                label="Club Notifications"
+                checked={Boolean(settings?.notifications?.clubs)}
+                onChange={(checked) => handleToggle("notifications.clubs", checked)}
+                icon={Megaphone}
+              />
+
+              <Toggle
+                label="Post Like Notifications"
+                checked={Boolean(settings?.notifications?.posts?.likes)}
+                onChange={(checked) => handleToggle("notifications.posts.likes", checked)}
+                icon={ThumbsUp}
+              />
+
+              <Toggle
+                label="Post Comment Notifications"
+                checked={Boolean(settings?.notifications?.posts?.comments)}
+                onChange={(checked) => handleToggle("notifications.posts.comments", checked)}
+                icon={MessageSquare}
+              />
+
+              <Toggle
                 label="Gift Notifications"
-                checked={Boolean(settings?.account?.notifications?.gifts)}
-                onChange={(checked) => handleToggle("account.notifications.gifts", checked)}
+                checked={Boolean(settings?.notifications?.gifts)}
+                onChange={(checked) => handleToggle("notifications.gifts", checked)}
                 icon={Gift}
               />
             </div>
