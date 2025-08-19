@@ -184,8 +184,8 @@ export const toggleFavorite = async (req: Request, res: Response) => {
 
 export const getCurrentUser = async (req: Request, res: Response) => {
   try {
-    const userEmail = req.user?.email
-    const user = await User.findOne({ email: userEmail });
+    const ID = req.user?._id
+    const user = await User.findOne({ _id: ID });
     return res.status(200).json({ user })
   } catch (e) {
     console.error(e)

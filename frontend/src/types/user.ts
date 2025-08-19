@@ -4,6 +4,24 @@ export type PremiumStatus = "free" | "premium" | "vip";
 export type SafetyLevel = "safe" | "under_review" | "restricted";
 export type Role = "user" | "moderator" | "admin";
 
+
+export type FriendRequest = {
+  _id: string;
+  sender: string;
+  receiver: string;
+  status: "pending" | "accepted" | "rejected";
+  createdAt: string; // ISO date string
+};
+
+export type FollowRequest = {
+  _id: string;
+  requester: string;
+  targetUser: string;
+  status: "pending" | "accepted" | "rejected";
+  createdAt: string; // ISO date string
+};
+
+
 export interface User {
   _id: string; // plain string instead of ObjectId
   uid: string;
@@ -86,6 +104,9 @@ export interface User {
   blockedBy: string[];
   badges: string[];
   clubs: string[];
+
+  pendingFriendRequests?: FriendRequest[];
+  pendingFollowRequests?: FollowRequest[];
 
   role: Role;
   createdAt: string;

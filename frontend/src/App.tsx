@@ -13,6 +13,7 @@ import { SearchPage } from './features/search/SearchPage';
 import AuthPage from './pages/AuthPage';
 import RedirectIfAuthenticated from './components/RedirectIfAuhtenticated'; 
 import SettingsPage from './features/settings/SettingsPage';
+import { NotificationsPage } from './features/notification/NotificationPage';
 
 // Lazy-loaded pages
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -66,6 +67,7 @@ const App: React.FC = () => {
                       <Route path="profile/:identifier" element={<ProfilePage />} />
                       <Route path="me" element={<ProfilePage />} />
                       <Route path="search" element={<SearchPage />} />
+                      <Route path="notifications" element={<NotificationsPage />} />
                     </Route>
 
                     {/* Fallback for unknown routes */}

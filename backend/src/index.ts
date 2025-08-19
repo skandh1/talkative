@@ -8,6 +8,8 @@ dotenv.config();
 import userRoutes from './routes/userRoutes';
 import authRoutes from './routes/authRoutes';
 import settings from "./routes/settings.router"
+import userReqRoutes from "./routes/userReqRoutes"
+import notification from "./routes/notification.routes"
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -37,6 +39,8 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use("/api", settings)
 app.use('/api/users', userRoutes);
+app.use('/api/users', userReqRoutes);
+app.use("/api/notifications", notification)
 
 // Database connection & server start
 const startServer = async () => {

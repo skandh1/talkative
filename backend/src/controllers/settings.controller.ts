@@ -20,7 +20,7 @@ export const patchMySettings = async (req: Request, res: Response, next: NextFun
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    console.log("this->", req.body)
+    // console.log("this->", req.body)
     const userId = req.user.uid;
 
     const payload = req.body;

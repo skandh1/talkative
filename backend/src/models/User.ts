@@ -8,6 +8,45 @@ const GiftHistorySchema = new Schema({
   date: { type: Date, default: Date.now },
 });
 
+// ---- Friend Request Schema ----
+const FriendRequestSchema = new Schema({
+  sender: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true
+  },
+  receiver: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ["pending", "accepted", "rejected"],
+    default: "pending"
+  },
+  createdAt: { type: Date, default: Date.now }
+});
+
+// ---- Follow Request Schema ----
+const FollowRequestSchema = new Schema({
+  requester: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true
+  },
+  targetUser: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ["pending", "accepted", "rejected"],
+    default: "pending"
+  },
+  createdAt: { type: Date, default: Date.now }
+});
 // ---- User Interface ----
 export interface IUser extends Document {
   username: string;
@@ -89,9 +128,35 @@ export interface IUser extends Document {
   blockedBy: mongoose.Types.ObjectId[];
   clubs: mongoose.Types.ObjectId[];
 
+  pendingFriendRequests: mongoose.Types.ObjectId[]; // References FriendRequest documents
+  pendingFollowRequests: mongoose.Types.ObjectId[];
+
   badges: string[];
   role: "user" | "moderator" | "admin";
 }
+
+export type FriendRequest = {
+  _id: string;
+  sender: string | UserBasicInfo;
+  receiver: string | UserBasicInfo;
+  status: "pending" | "accepted" | "rejected";
+  createdAt: Date;
+};
+
+export type FollowRequest = {
+  _id: string;
+  requester: string | UserBasicInfo;
+  targetUser: string | UserBasicInfo;
+  status: "pending" | "accepted" | "rejected";
+  createdAt: Date;
+};
+
+export type UserBasicInfo = {
+  _id: string;
+  username: string;
+  profilePic: string;
+  isOnline: boolean;
+};
 
 // ---- Schema ----
 const UserSchema: Schema<IUser> = new Schema<IUser>(
@@ -223,6 +288,15 @@ const UserSchema: Schema<IUser> = new Schema<IUser>(
     blockedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     clubs: [{ type: mongoose.Schema.Types.ObjectId, ref: "Club" }],
 
+    pendingFriendRequests: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FriendRequest"
+    }],
+    pendingFollowRequests: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FollowRequest"
+    }],
+
     badges: [{ type: String }],
     role: {
       type: String,
@@ -231,7 +305,14 @@ const UserSchema: Schema<IUser> = new Schema<IUser>(
     },
   },
   { timestamps: true }
+
 );
 
+export const FriendRequest = mongoose.models.FriendRequest || 
+  mongoose.model("FriendRequest", FriendRequestSchema);
+
+export const FollowRequest = mongoose.models.FollowRequest || 
+  mongoose.model("FollowRequest", FollowRequestSchema);
+  
 export const User: Model<IUser> =
   mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
