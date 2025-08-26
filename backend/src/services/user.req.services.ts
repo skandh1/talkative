@@ -1,3 +1,4 @@
+
 // src/services/user.req.services.ts
 
 import { User, FriendRequest, FollowRequest, IUser } from '../models/User';
@@ -19,6 +20,35 @@ const findUsers = async (currentUserId: string, targetUserId: string) => {
     return { currentUser, targetUser };
 };
 
+export const getSocialData = async (userId: string) => {
+    const user = await User.findById(userId)
+        .populate('friends', userBasicInfoFields)
+        .populate('followers', userBasicInfoFields)
+        .populate('following', userBasicInfoFields)
+        .exec();
+
+    if (!user) {
+        throw new Error('User not found');
+    }
+
+    const friendRequests = await FriendRequest.find({
+        receiver: userId,
+        status: 'pending',
+    }).populate('sender', userBasicInfoFields);
+
+    const followRequests = await FollowRequest.find({
+        receiver: userId,
+        status: 'pending',
+    }).populate('sender', userBasicInfoFields);
+
+    return {
+        friends: user.friends,
+        followers: user.followers,
+        following: user.following,
+        friendRequests,
+        followRequests,
+    };
+};
 // **Service: sendFriendRequest**
 export const sendFriendRequest = async (currentUserId: string, targetUserId: string) => {
     const { currentUser, targetUser } = await findUsers(currentUserId, targetUserId);
@@ -47,8 +77,8 @@ export const sendFriendRequest = async (currentUserId: string, targetUserId: str
         receiver: targetUserId
     });
 
-    targetUser.pendingFriendRequests.push(newRequest._id as mongoose.Types.ObjectId);
-    await targetUser.save();
+    // targetUser.pendingFriendRequests.push(newRequest._id as mongoose.Types.ObjectId);
+    // await targetUser.save();
 
     // *** Create a notification for the recipient ***
     await Notification.create({
@@ -64,42 +94,115 @@ export const sendFriendRequest = async (currentUserId: string, targetUserId: str
 
 // **Service: acceptFriendRequest**
 export const acceptFriendRequest = async (currentUserId: string, requestId: string) => {
-    const request = await FriendRequest.findById(requestId);
-    const requestReceiver = request.receiver.toString();
-    const currentUserIdString = currentUserId.toString();
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    if (!request || requestReceiver !== currentUserIdString) {
-        throw new Error('Request not found or you are not the receiver.');
+    try {
+        const request = await FriendRequest.findById(requestId).session(session);
+        if (!request) {
+            throw new Error("Request not found.");
+        }
+
+        // Ensure current user is the receiver
+        const requestReceiver = request.receiver.toString();
+        const currentUserIdString = currentUserId.toString();
+        if (requestReceiver !== currentUserIdString) {
+            throw new Error("You are not the receiver of this request.");
+        }
+
+        if (request.status !== "pending") {
+            throw new Error("Request is not pending.");
+        }
+
+        // Update both users' friends
+        const [requester, receiver] = await Promise.all([
+            User.findByIdAndUpdate(
+                request.sender,
+                { $addToSet: { friends: request.receiver } },
+                { new: true, session }
+            ),
+            User.findByIdAndUpdate(
+                request.receiver,
+                { $addToSet: { friends: request.sender } },
+                { new: true, session }
+            ),
+        ]);
+
+        if (!requester || !receiver) {
+            throw new Error("Could not update users.");
+        }
+
+        // Delete the friend request
+        await FriendRequest.deleteOne({ _id: request._id }).session(session);
+
+        // Delete the original friend request notification
+        await Notification.deleteOne({
+            recipient: request.receiver,
+            sender: request.sender,
+            type: "friend_request"
+        }).session(session);
+
+        // Create a notification for acceptance
+        await Notification.create(
+            [
+                {
+                    recipient: request.sender,
+                    sender: request.receiver,
+                    type: "friend_accepted",
+                    content: `${receiver.displayName || receiver.username} accepted your friend request.`,
+                },
+            ],
+            { session }
+        );
+
+        await session.commitTransaction();
+        session.endSession();
+
+        return { requester, receiver };
+    } catch (err) {
+        await session.abortTransaction();
+        session.endSession();
+        throw err; // Pass error up for proper handling
     }
-    console.log("hi")
-    if (request.status !== 'pending') {
-        throw new Error('Request is not pending.');
-    }
-
-    request.status = 'accepted';
-    await request.save();
-
-    const [requester, receiver] = await Promise.all([
-        User.findByIdAndUpdate(request.sender, { $addToSet: { friends: request.receiver } }, { new: true }),
-        User.findByIdAndUpdate(request.receiver, { $addToSet: { friends: request.sender }, $pull: { pendingFriendRequests: requestId } }, { new: true }),
-    ]);
-
-    if (!requester || !receiver) {
-        throw new Error('Could not update users.');
-    }
-
-    // *** Create a notification for the requester ***
-    await Notification.create({
-        recipient: request.sender,
-        sender: request.receiver,
-        type: 'friend_accepted',
-        content: `${receiver.displayName || receiver.username} accepted your friend request.`,
-        relatedId: request._id,
-    });
-
-    return { requester, receiver };
 };
 
+// Update this function in your user.req.services.ts
+export const getRelationships = async (userId: string, otherUserId: string) => {
+    try {
+        const [user, otherUser] = await Promise.all([
+            User.findById(userId),
+            User.findById(otherUserId),
+        ]);
+
+        if (!user || !otherUser) {
+            throw new Error('User not found.');
+        }
+
+        // Find the actual request documents, not just boolean checks
+        const [outgoingRequest, incomingRequest] = await Promise.all([
+            FriendRequest.findOne({
+                sender: userId,
+                receiver: otherUserId,
+                status: "pending",
+            }),
+            FriendRequest.findOne({
+                sender: otherUserId,
+                receiver: userId,
+                status: "pending",
+            })
+        ]);
+
+        const relationships = {
+            isFriend: user.friends.includes(otherUser._id),
+            outgoingRequest: outgoingRequest, // Return the full object with _id
+            incomingRequest: incomingRequest, // Return the full object with _id
+        };
+
+        return relationships;
+    } catch (err) {
+        throw err;
+    }
+};
 // **Service: rejectFriendRequest**
 export const rejectFriendRequest = async (currentUserId: string, requestId: string) => {
     const request = await FriendRequest.findById(requestId);
@@ -113,40 +216,66 @@ export const rejectFriendRequest = async (currentUserId: string, requestId: stri
         throw new Error('Request is not pending.');
     }
 
-    request.status = 'rejected';
-    await request.save();
+    await request.deleteOne();
 
+    await Notification.deleteOne({
+        recipient: request.receiver,
+        sender: request.sender,
+        type: "friend_request"
+    })
     // Remove the request from the receiver's pending list
-    await User.findByIdAndUpdate(currentUserId, { $pull: { pendingFriendRequests: requestId } });
+    // await User.findByIdAndUpdate(currentUserId, { $pull: { pendingFriendRequests: requestId } });
 
     // *** Create a notification for the requester ***
-    const receiverUser = await User.findById(currentUserId);
-    await Notification.create({
-        recipient: request.sender,
-        sender: currentUserId,
-        type: 'friend_rejected',
-        content: `${receiverUser.displayName || receiverUser.username} rejected your friend request.`,
-        relatedId: request._id,
-    });
+    // const receiverUser = await User.findById(currentUserId);
+    // await Notification.create({
+    //     recipient: request.sender,
+    //     sender: currentUserId,
+    //     type: 'friend_rejected',
+    //     content: `${receiverUser?.displayName || receiverUser?.username} rejected your friend request.`,
+    //     relatedId: request._id,
+    // });
 
     return { message: 'Request rejected successfully.' };
 };
 
-// **Service: cancelFriendRequest**
 export const cancelFriendRequest = async (currentUserId: string, requestId: string) => {
-    const request = await FriendRequest.findById(requestId);
-    const requestReceiver = request.receiver.toString();
-    const currentUserIdString = currentUserId.toString();
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    if (!request || requestReceiver !== currentUserIdString) {
-        throw new Error('Request not found or you are not the receiver.');
+    try {
+        const request = await FriendRequest.findById(requestId).session(session);
+        if (!request) {
+            throw new Error("Request not found.");
+        }
+
+        const requestSender = request.sender.toString();
+        const currentUserIdString = currentUserId.toString();
+
+        // Only the sender can cancel their outgoing request
+        if (requestSender !== currentUserIdString) {
+            throw new Error("You are not the sender of this request.");
+        }
+
+        // Delete the request itself
+        await FriendRequest.deleteOne({ _id: requestId }).session(session);
+
+        // Delete the related notification for the receiver
+        await Notification.deleteOne({
+            recipient: request.receiver,
+            sender: request.sender,
+            type: "friend_request", // <-- make sure you used this type when creating it
+        }).session(session);
+
+        await session.commitTransaction();
+        session.endSession();
+
+        return { message: "Request cancelled successfully." };
+    } catch (err) {
+        await session.abortTransaction();
+        session.endSession();
+        throw err;
     }
-    await Promise.all([
-        User.findByIdAndUpdate(request.receiver, { $pull: { pendingFriendRequests: requestId } }),
-        FriendRequest.findByIdAndDelete(requestId)
-    ]);
-
-    return { message: 'Request cancelled successfully.' };
 };
 
 // **Service: addFriend**
@@ -226,12 +355,12 @@ export const sendFollowRequest = async (currentUserId: string, targetUserId: str
         throw new Error('Cannot send a follow request to a public profile. Use the direct follow action.');
     }
 
-    const existingRequest = await FollowRequest.findOne({ requester: currentUserId, targetUser: targetUserId });
+    const existingRequest = await FollowRequest.findOne({ sender: currentUserId, receiver: targetUserId });
     if (existingRequest) {
         throw new Error('A follow request has already been sent.');
     }
 
-    const newRequest = await FollowRequest.create({ requester: currentUserId, targetUser: targetUserId });
+    const newRequest = await FollowRequest.create({ sender: currentUserId, receiver: targetUserId });
     targetUser.pendingFollowRequests.push(newRequest._id as mongoose.Types.ObjectId);
     await targetUser.save();
 
@@ -250,15 +379,18 @@ export const sendFollowRequest = async (currentUserId: string, targetUserId: str
 // **Service: cancelFollowRequest**
 export const cancelFollowRequest = async (currentUserId: string, requestId: string) => {
     const request = await FollowRequest.findById(requestId);
-    const requestReceiver = request.receiver.toString();
+    // console.log(request, currentUserId)
+    const requestReceiver = request.sender.toString();
     const currentUserIdString = currentUserId.toString();
+
+    // console.log(requestReceiver, currentUserIdString)
 
     if (!request || requestReceiver !== currentUserIdString) {
         throw new Error('Request not found or you are not the receiver.');
     }
 
     await Promise.all([
-        User.findByIdAndUpdate(request.targetUser, { $pull: { pendingFollowRequests: requestId } }),
+        // User.findByIdAndUpdate(request.receiver, { $pull: { pendingFollowRequests: requestId } }),
         FollowRequest.findByIdAndDelete(requestId)
     ]);
 
@@ -271,6 +403,7 @@ export const acceptFollowRequest = async (currentUserId: string, requestId: stri
     const requestReceiver = request.receiver.toString();
     const currentUserIdString = currentUserId.toString();
 
+
     if (!request || requestReceiver !== currentUserIdString) {
         throw new Error('Request not found or you are not the receiver.');
     }
@@ -280,11 +413,11 @@ export const acceptFollowRequest = async (currentUserId: string, requestId: stri
     }
 
     request.status = 'accepted';
-    await request.save();
+    await request.deleteOne();
 
     const [follower, following] = await Promise.all([
-        User.findByIdAndUpdate(request.requester, { $addToSet: { following: request.targetUser } }),
-        User.findByIdAndUpdate(request.targetUser, { $addToSet: { followers: request.requester }, $pull: { pendingFollowRequests: requestId } }),
+        User.findByIdAndUpdate(request.sender, { $addToSet: { following: request.receiver } }),
+        User.findByIdAndUpdate(request.receiver, { $addToSet: { followers: request.sender }, $pull: { pendingFollowRequests: requestId } }),
     ]);
 
     if (!follower || !following) {
@@ -293,8 +426,8 @@ export const acceptFollowRequest = async (currentUserId: string, requestId: stri
 
     // *** Create a notification for the requester ***
     await Notification.create({
-        recipient: request.requester,
-        sender: request.targetUser,
+        recipient: request.sender,
+        sender: request.receiver,
         type: 'follow_accepted',
         content: `${following.displayName || following.username} accepted your follow request.`,
         relatedId: request._id,
@@ -317,15 +450,14 @@ export const rejectFollowRequest = async (currentUserId: string, requestId: stri
         throw new Error('Request is not pending.');
     }
 
-    request.status = 'rejected';
-    await request.save();
+    await request.deleteOne();
 
     await User.findByIdAndUpdate(currentUserId, { $pull: { pendingFollowRequests: requestId } });
 
     // *** Create a notification for the requester ***
     const receiverUser = await User.findById(currentUserId);
     await Notification.create({
-        recipient: request.requester,
+        recipient: request.sender,
         sender: currentUserId,
         type: 'follow_rejected',
         content: `${receiverUser?.displayName || receiverUser?.username} rejected your follow request.`,
@@ -333,4 +465,41 @@ export const rejectFollowRequest = async (currentUserId: string, requestId: stri
     });
 
     return { message: 'Follow request rejected.' };
+};
+
+export const getFollowRelationships = async (userId: string, otherUserId: string) => {
+    try {
+        const [user, otherUser] = await Promise.all([
+            User.findById(userId),
+            User.findById(otherUserId),
+        ]);
+
+        if (!user || !otherUser) {
+            throw new Error('User not found.');
+        }
+
+        // Find the actual follow request documents
+        const [outgoingFollowRequest, incomingFollowRequest] = await Promise.all([
+            FollowRequest.findOne({
+                sender: userId,
+                receiver: otherUserId,
+                status: "pending",
+            }),
+            FollowRequest.findOne({
+                sender: otherUserId,
+                receiver: userId,
+                status: "pending",
+            })
+        ]);
+        
+        const relationships = {
+            isFollowing: user.following.includes(otherUser._id),
+            outgoingFollowRequest: outgoingFollowRequest, // Return the full object with _id
+            incomingFollowRequest: incomingFollowRequest, // Return the full object with _id
+        };
+        console.log(relationships)
+        return relationships;
+    } catch (err) {
+        throw err;
+    }
 };

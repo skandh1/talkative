@@ -13,18 +13,32 @@ const isValidObjectId = (id: string): boolean => mongoose.Types.ObjectId.isValid
  * @param userId The ID of the user to get notifications for.
  * @returns An array of notification documents.
  */
-export const getUserNotifications = async (userId: string): Promise<INotification[]> => {
+export const getUserNotifications = async (
+    userId: string, 
+    page: number = 1, 
+    limit: number = 20
+): Promise<{ notifications: INotification[], total: number, hasMore: boolean }> => {
     if (!isValidObjectId(userId)) {
         throw new Error('Invalid user ID.');
     }
 
-    // Find and sort notifications for the given user, populating the sender's basic info
-    const notifications = await Notification.find({ recipient: userId })
-        .sort({ createdAt: -1 })
-        .populate('sender', 'username displayName profilePic isOnline') // Only get necessary user fields
-        .exec();
+    const skip = (page - 1) * limit;
+    
+    const [notifications, total] = await Promise.all([
+        Notification.find({ recipient: userId })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .populate('sender', 'username displayName profilePic')
+            .exec(),
+        Notification.countDocuments({ recipient: userId })
+    ]);
 
-    return notifications;
+    return {
+        notifications,
+        total,
+        hasMore: skip + notifications.length < total
+    };
 };
 
 /**
@@ -62,11 +76,14 @@ export const markAllNotificationsAsRead = async (userId: string) => {
     }
 
     const result = await Notification.updateMany(
-        { recipient: userId, isRead: false }, // Find all unread notifications for the user
-        { $set: { isRead: true } } // Mark them all as read
+        { recipient: userId, isRead: false },
+        { $set: { isRead: true } }
     ).exec();
 
-    return result;
+    return { 
+        modifiedCount: result.modifiedCount,
+        message: `${result.modifiedCount} notifications marked as read.`
+    };
 };
 
 // You can add more services here for deleting notifications, etc.

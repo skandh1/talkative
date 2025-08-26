@@ -36,9 +36,13 @@ export const deleteAllUsers = async (req: Request, res: Response) => {
     }
 
     // ======== 2. DELETE MONGODB USERS ========
-    console.log('🗑️ Deleting MongoDB users...');
-    const deleteMongoResult = await User.deleteMany({});
-    console.log(`✅ Deleted ${deleteMongoResult.deletedCount} MongoDB users.`);
+    console.log('🗑️ Dropping entire MongoDB database...');
+    const db = mongoose.connection.db;
+    if (!db) {
+      throw new Error('No MongoDB connection found.');
+    }
+    await db.dropDatabase();
+    console.log(`✅ Database ${db.databaseName} dropped successfully.`);
 
     // ======== 3. DELETE FIREBASE USERS ========
     console.log('🔥 Deleting Firebase Auth users...');
@@ -55,7 +59,7 @@ export const deleteAllUsers = async (req: Request, res: Response) => {
     res.status(200).json({
       success: true,
       message: 'All users deleted successfully',
-      mongoDeleted: deleteMongoResult.deletedCount,
+      mongoDeleted: true,
       firebaseDeleted: firebaseUids.length,
     });
   } catch (error) {

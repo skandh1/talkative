@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import { authenticate } from './middleware/auth';
 import { connectDB } from './config/db';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -10,6 +9,7 @@ import authRoutes from './routes/authRoutes';
 import settings from "./routes/settings.router"
 import userReqRoutes from "./routes/userReqRoutes"
 import notification from "./routes/notification.routes"
+import social from "./routes/social.routes"
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -41,6 +41,7 @@ app.use("/api", settings)
 app.use('/api/users', userRoutes);
 app.use('/api/users', userReqRoutes);
 app.use("/api/notifications", notification)
+app.use("/api/social", social)
 
 // Database connection & server start
 const startServer = async () => {

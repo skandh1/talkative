@@ -15,8 +15,8 @@ export type FriendRequest = {
 
 export type FollowRequest = {
   _id: string;
-  requester: string;
-  targetUser: string;
+  sender: string;
+  receiver: string;
   status: "pending" | "accepted" | "rejected";
   createdAt: string; // ISO date string
 };

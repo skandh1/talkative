@@ -32,7 +32,7 @@ export const SearchPage: React.FC = () => {
 
   // Helper to determine if the search term is a valid MongoDB ObjectId
   const isMongoId = (str: string) => /^[0-9a-fA-F]{24}$/.test(str);
-  
+
   // Use a local debounce hook or a library like 'use-debounce'
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
@@ -43,14 +43,14 @@ export const SearchPage: React.FC = () => {
       if (!debouncedSearchTerm) {
         return;
       }
-      
+
       setIsLoading(true);
 
       try {
         const token = await getToken();
         let url;
         const isById = isMongoId(debouncedSearchTerm);
-        
+
         if (isById) {
           url = `${API_BASE_URL}/id/${debouncedSearchTerm}`;
         } else {
@@ -66,7 +66,7 @@ export const SearchPage: React.FC = () => {
         // The API might return a single user or an array
         const fetchedUsers = Array.isArray(response.data) ? response.data : [response.data];
         setSearchResults(fetchedUsers);
-        
+
         if (fetchedUsers.length === 0) {
           toast.info("No users found.");
         }
@@ -83,7 +83,7 @@ export const SearchPage: React.FC = () => {
 
     fetchResults();
   }, [debouncedSearchTerm, getToken]);
-  
+
   return (
     <div className="flex flex-col items-center p-4 md:p-8 min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="w-full max-w-3xl">
@@ -109,7 +109,7 @@ export const SearchPage: React.FC = () => {
             <p>Searching...</p>
           </div>
         )}
-        
+
         {!isLoading && searchResults?.length === 0 && (
           <div className="text-center text-gray-500 dark:text-gray-400">
             <p className="text-lg">No users found for "{searchTerm}".</p>
@@ -117,7 +117,7 @@ export const SearchPage: React.FC = () => {
         )}
 
         <div className="space-y-4">
-          {!isLoading && searchResults && searchResults.length > 0 && searchResults.map((user) => (
+          {!isLoading && searchResults && searchResults?.length > 0 && searchResults.map((user) => (
             <Link key={user._id} to={`/profile/${user.username}`} className="group block">
               <div className="flex items-center space-x-4 p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-md transition-all hover:shadow-xl hover:bg-gray-100 dark:hover:bg-gray-700">
                 <div className="relative">
@@ -136,20 +136,18 @@ export const SearchPage: React.FC = () => {
                       {user.displayName}
                     </p>
                     {user.profileStatus === 'active' && (
-                       <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full dark:bg-green-900 dark:text-green-300">Active</span>
+                      <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full dark:bg-green-900 dark:text-green-300">Active</span>
                     )}
                   </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">@{user.username}</p>
                 </div>
-                <Button 
-                  asChild 
-                  className="bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-700"
-                >
-                  <Link to={`/profile/${user.username}`}>View Profile</Link>
+                <Button className="bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-700">
+                  View Profile
                 </Button>
               </div>
             </Link>
           ))}
+
         </div>
       </div>
     </div>

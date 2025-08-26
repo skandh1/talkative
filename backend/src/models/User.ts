@@ -30,12 +30,12 @@ const FriendRequestSchema = new Schema({
 
 // ---- Follow Request Schema ----
 const FollowRequestSchema = new Schema({
-  requester: {
+  sender: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true
   },
-  targetUser: {
+  receiver: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true
@@ -145,8 +145,8 @@ export type FriendRequest = {
 
 export type FollowRequest = {
   _id: string;
-  requester: string | UserBasicInfo;
-  targetUser: string | UserBasicInfo;
+  sender: string | UserBasicInfo;
+  receiver: string | UserBasicInfo;
   status: "pending" | "accepted" | "rejected";
   createdAt: Date;
 };
@@ -308,11 +308,11 @@ const UserSchema: Schema<IUser> = new Schema<IUser>(
 
 );
 
-export const FriendRequest = mongoose.models.FriendRequest || 
+export const FriendRequest = mongoose.models.FriendRequest ||
   mongoose.model("FriendRequest", FriendRequestSchema);
 
-export const FollowRequest = mongoose.models.FollowRequest || 
+export const FollowRequest = mongoose.models.FollowRequest ||
   mongoose.model("FollowRequest", FollowRequestSchema);
-  
+
 export const User: Model<IUser> =
   mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
