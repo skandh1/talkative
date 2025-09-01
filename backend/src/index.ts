@@ -1,21 +1,28 @@
+
 import express from 'express';
+import dotenv from 'dotenv';
+dotenv.config();
 import cors from 'cors';
 import { createServer } from 'http';
 import mongoose from 'mongoose';
 import cookieParser from 'cookie-parser';
-import dotenv from 'dotenv';
-import { corsConfig } from './config/cors';
 import { WSServer } from './ws/server';
 import { connectDB } from './config/db'; // Assuming this function exists
 
 // Load environment variables
-dotenv.config();
+
+
 
 const app = express();
 const server = createServer(app);
 
 // Use CORS configuration from the first snippet
-app.use(corsConfig);
+app.use(cors({
+  origin: process.env.CLIENT_URL,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 
 // Middleware from both snippets
 app.use(express.json({ limit: '10mb' }));

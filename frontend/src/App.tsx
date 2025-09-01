@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer } from 'react-toastify';
@@ -11,9 +11,13 @@ import Navbar from './components/Navbar';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { SearchPage } from './features/search/SearchPage';
 import AuthPage from './pages/AuthPage';
-import RedirectIfAuthenticated from './components/RedirectIfAuhtenticated'; 
+import RedirectIfAuthenticated from './components/RedirectIfAuhtenticated';
 import SettingsPage from './features/settings/SettingsPage';
 import { NotificationsPage } from './features/notification/NotificationPage';
+import { ChatPage } from './features/chat/ChatPage';
+import { IncomingCallModal } from './components/IncomingCallModal';
+import { ActiveCallBar } from './features/call/components/ActiveCallBar';
+import WebSocketConnectionManager from './services/WebSocketConnectionManager';
 
 // Lazy-loaded pages
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -30,11 +34,12 @@ const queryClient = new QueryClient();
 const LoadingSpinner: React.FC = () => <div className="text-center p-8">Loading...</div>;
 
 const App: React.FC = () => {
-  
+
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
         <AuthProvider>
+          <WebSocketConnectionManager />
           <ThemeProvider>
             <Suspense fallback={<LoadingSpinner />}>
               <ToastContainer />
@@ -44,19 +49,20 @@ const App: React.FC = () => {
                   <Routes>
                     {/* Public route for LandingPage */}
                     <Route path="/" element={<LandingPage />} />
-                    
+
                     {/* Auth page wrapped with RedirectIfAuthenticated */}
-                    <Route 
-                      path="/auth" 
+                    <Route
+                      path="/auth"
                       element={
                         <RedirectIfAuthenticated>
                           <AuthPage />
                         </RedirectIfAuthenticated>
-                      } 
+                      }
                     />
 
                     {/* Protected routes are now nested under a single ProtectedLayout route */}
                     <Route element={<ProtectedLayout />}>
+                      <Route path="/chat/:conversationId?" element={<ChatPage />} />
                       <Route path="dashboard" element={<Dashboard />} />
                       <Route path="home" element={<Home />} />
                       <Route path="check/:identifier" element={<Profile />} />
@@ -75,6 +81,8 @@ const App: React.FC = () => {
                   </Routes>
                 </main>
               </div>
+              <IncomingCallModal />
+              <ActiveCallBar />
             </Suspense>
           </ThemeProvider>
         </AuthProvider>
