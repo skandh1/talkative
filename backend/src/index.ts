@@ -1,53 +1,69 @@
 import express from 'express';
 import cors from 'cors';
-import { authenticate } from './middleware/auth';
-import { connectDB } from './config/db';
+import { createServer } from 'http';
+import mongoose from 'mongoose';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import { corsConfig } from './config/cors';
+import { WSServer } from './ws/server';
+import { connectDB } from './config/db'; // Assuming this function exists
+
+// Load environment variables
 dotenv.config();
 
-import userRoutes from './routes/userRoutes';
-import authRoutes from './routes/authRoutes';
-import settings from "./routes/settings.router"
-import userReqRoutes from "./routes/userReqRoutes"
-import notification from "./routes/notification.routes"
-
 const app = express();
-const PORT = process.env.PORT || 5000;
+const server = createServer(app);
 
-// CORS Configuration
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true,
-}));
+// Use CORS configuration from the first snippet
+app.use(corsConfig);
 
-// Middleware
-app.use(express.json());
+// Middleware from both snippets
+app.use(express.json({ limit: '10mb' }));
+app.use(cookieParser());
 
-// Enhanced Security Headers
+// Enhanced Security Headers from the second snippet
 app.use((req, res, next) => {
-  // Relax COOP for Firebase Auth to work properly
   res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
-  
-  // Keep other security headers
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  
   next();
 });
 
-// API Routes
+// Import and use all routes from both snippets
+import chatRoutes from './routes/chat.rotute';
+import callRoutes from './routes/call.routes';
+import userRoutes from './routes/userRoutes';
+import authRoutes from './routes/authRoutes';
+import settings from './routes/settings.router';
+import userReqRoutes from './routes/userReqRoutes';
+import notification from './routes/notification.routes';
+
+app.use('/api/chat', chatRoutes);
+app.use('/api/call', callRoutes);
 app.use('/api/auth', authRoutes);
-app.use("/api", settings)
 app.use('/api/users', userRoutes);
 app.use('/api/users', userReqRoutes);
-app.use("/api/notifications", notification)
+app.use('/api', settings);
+app.use('/api/notifications', notification);
+
+// Health check endpoint from the first snippet
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Initialize WebSocket server from the first snippet
+const wsServer = new WSServer(server);
 
 // Database connection & server start
 const startServer = async () => {
   try {
+    // Using the more robust connectDB function from the second snippet
     await connectDB();
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log('✅ Connected to MongoDB');
+
+    // Start the HTTP/WebSocket server
+    server.listen(process.env.PORT || 5000, () => {
+      console.log(`🚀 Server running on port ${process.env.PORT || 5000}`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
@@ -56,3 +72,11 @@ const startServer = async () => {
 };
 
 startServer();
+
+// Graceful shutdown from the first snippet
+process.on('SIGTERM', () => {
+  console.log('Shutting down gracefully...');
+  wsServer.close();
+  mongoose.connection.close();
+  server.close();
+});
