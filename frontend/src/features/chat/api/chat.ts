@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import { useApi } from "@/hooks/useApi"; // adjust path if needed
 
 export interface Conversation {
   _id: string;
@@ -33,34 +31,43 @@ export interface Message {
   createdAt: string;
 }
 
-export const chatAPI = {
-  createOrGetConversation: async (peerUserId: string): Promise<Conversation> => {
-    const response = await axios.post(`${API_BASE}/chat/conversations`, {
-      peerUserId
-    });
-    return response.data;
-  },
+export function useChatAPI() {
+  const { request } = useApi();
 
-  getUserConversations: async (limit = 20, cursor?: string): Promise<Conversation[]> => {
-    const response = await axios.get(`${API_BASE}/chat/conversations`, {
-      params: { limit, cursor }
-    });
-    return response.data;
-  },
+  return {
+    createOrGetConversation: async (peerUserId: string): Promise<Conversation> => {
+      return request<Conversation>(`/chat/conversations`, {
+        method: "POST",
+        body: JSON.stringify({ peerUserId }),
+      });
+    },
 
-  getMessages: async (conversationId: string, limit = 50, cursor?: string): Promise<Message[]> => {
-    const response = await axios.get(`${API_BASE}/chat/conversations/${conversationId}/messages`, {
-      params: { limit, cursor }
-    });
-    return response.data;
-  },
+    getUserConversations: async (limit = 20, cursor?: string): Promise<Conversation[]> => {
+      const query = new URLSearchParams({ limit: String(limit) });
+      if (cursor) query.append("cursor", cursor);
 
-  sendMessage: async (data: { conversationId?: string; peerUserId?: string; text: string }): Promise<Message> => {
-    const response = await axios.post(`${API_BASE}/chat/messages`, data);
-    return response.data;
-  },
+      return request<Conversation[]>(`/chat/conversations?${query.toString()}`);
+    },
 
-  markRead: async (conversationId: string): Promise<void> => {
-    await axios.post(`${API_BASE}/chat/mark-read`, { conversationId });
-  }
-};
+    getMessages: async (conversationId: string, limit = 50, cursor?: string): Promise<Message[]> => {
+      const query = new URLSearchParams({ limit: String(limit) });
+      if (cursor) query.append("cursor", cursor);
+
+      return request<Message[]>(`/chat/conversations/${conversationId}/messages?${query.toString()}`);
+    },
+
+    sendMessage: async (data: { conversationId?: string; peerUserId?: string; text: string }): Promise<Message> => {
+      return request<Message>(`/chat/messages`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    },
+
+    markRead: async (conversationId: string): Promise<void> => {
+      await request(`/chat/mark-read`, {
+        method: "POST",
+        body: JSON.stringify({ conversationId }),
+      });
+    },
+  };
+}

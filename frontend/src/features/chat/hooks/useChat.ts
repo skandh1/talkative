@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useChatStore } from '../state/chat.store.js';
-import { chatAPI } from '../api/chat.js';
-import { wsClient } from '../../../lib/ws.js';
-import { type MessageEvent, type DeliveryEvent, type ReadEvent } from '../../../types/realtime';
+import { useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useChatStore } from "../state/chat.store.js";
+import { useChatAPI } from "../api/chat"; // ✅ updated name
+import { wsClient } from "../../../lib/ws.js";
+import { type MessageEvent, type DeliveryEvent, type ReadEvent } from "../../../types/realtime";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const useChat = () => {
   const queryClient = useQueryClient();
@@ -16,30 +17,36 @@ export const useChat = () => {
     updateMessage,
     setActiveConversation,
     markMessagesAsRead,
-    addConversation
+    addConversation,
   } = useChatStore();
 
-  // Subscribe to WebSocket events
+  const { dbUser } = useAuth(); // ✅ get current logged-in user
+  const chatAPI = useChatAPI(); // ✅ new API wrapper
+
+  // ✅ Subscribe to WebSocket events
   useEffect(() => {
-    const unsubscribeMessage = wsClient.subscribe('chat.message', (message: MessageEvent) => {
+    const unsubscribeMessage = wsClient.subscribe("chat.message", (message: MessageEvent) => {
       addMessage(message as any);
-      
+
       // Mark as delivered immediately
-      wsClient.send('chat.message.delivered', {
+      wsClient.send("chat.message.delivered", {
         messageId: message.id,
-        senderId: message.senderId
+        senderId: message.senderId,
       });
     });
 
-    const unsubscribeDelivered = wsClient.subscribe('chat.message.delivered', (event: DeliveryEvent) => {
-      updateMessage(event.messageId, {
-        deliveredTo: [event.userId] // This should be merged properly in a real implementation
-      });
-    });
+    const unsubscribeDelivered = wsClient.subscribe(
+      "chat.message.delivered",
+      (event: DeliveryEvent) => {
+        updateMessage(event.messageId, {
+          deliveredTo: [event.userId], // ⚠️ should merge properly in real impl
+        });
+      }
+    );
 
-    const unsubscribeRead = wsClient.subscribe('chat.message.read', (event: ReadEvent) => {
+    const unsubscribeRead = wsClient.subscribe("chat.message.read", (event: ReadEvent) => {
       updateMessage(event.messageId, {
-        readBy: [event.userId] // This should be merged properly in a real implementation  
+        readBy: [event.userId], // ⚠️ should merge properly in real impl
       });
     });
 
@@ -50,46 +57,48 @@ export const useChat = () => {
     };
   }, [addMessage, updateMessage]);
 
-  // Queries
+  // ✅ Queries
   const conversationsQuery = useQuery({
-    queryKey: ['conversations'],
+    queryKey: ["conversations"],
     queryFn: chatAPI.getUserConversations,
-    onSuccess: setConversations
+    onSuccess: setConversations,
   });
 
   const messagesQuery = useQuery({
-    queryKey: ['messages', activeConversationId],
-    queryFn: () => activeConversationId ? chatAPI.getMessages(activeConversationId) : Promise.resolve([]),
-    enabled: !!activeConversationId
+    queryKey: ["messages", activeConversationId],
+    queryFn: () =>
+      activeConversationId
+        ? chatAPI.getMessages(activeConversationId)
+        : Promise.resolve([]),
+    enabled: !!activeConversationId,
   });
 
-  // Mutations
+  // ✅ Mutations
   const sendMessageMutation = useMutation({
     mutationFn: chatAPI.sendMessage,
     onSuccess: (message) => {
       addMessage(message);
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-    }
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    },
   });
 
   const markReadMutation = useMutation({
     mutationFn: chatAPI.markRead,
     onSuccess: (_, conversationId) => {
-      if (activeConversationId === conversationId) {
-        // Mark messages as read in local state
-        // In a real implementation, you'd get the current user ID from context
-        markMessagesAsRead(conversationId, 'currentUserId');
+      if (activeConversationId === conversationId && dbUser) {
+        markMessagesAsRead(conversationId, dbUser.id);
       }
-    }
+    },
   });
 
   const createConversationMutation = useMutation({
     mutationFn: chatAPI.createOrGetConversation,
     onSuccess: (conversation) => {
       addConversation(conversation);
-    }
+    },
   });
 
+  // ✅ Helpers
   const openOrCreateConversation = async (peerUserId: string) => {
     const conversation = await createConversationMutation.mutateAsync(peerUserId);
     setActiveConversation(conversation._id);
@@ -102,12 +111,14 @@ export const useChat = () => {
 
   return {
     conversations,
-    messages: activeConversationId ? messagesByConversation[activeConversationId] || [] : [],
+    messages: activeConversationId
+      ? messagesByConversation[activeConversationId] || []
+      : [],
     activeConversationId,
     isLoading: conversationsQuery.isLoading || messagesQuery.isLoading,
     openOrCreateConversation,
     sendMessage,
     markRead: markReadMutation.mutate,
-    setActiveConversation
+    setActiveConversation,
   };
 };

@@ -13,6 +13,13 @@ import { connectDB } from './config/db'; // Assuming this function exists
 
 
 
+import userRoutes from './routes/userRoutes';
+import authRoutes from './routes/authRoutes';
+import settings from "./routes/settings.router"
+import userReqRoutes from "./routes/userReqRoutes"
+import notification from "./routes/notification.routes"
+import social from "./routes/social.routes"
+
 const app = express();
 const server = createServer(app);
 
@@ -39,11 +46,6 @@ app.use((req, res, next) => {
 // Import and use all routes from both snippets
 import chatRoutes from './routes/chat.rotute';
 import callRoutes from './routes/call.routes';
-import userRoutes from './routes/userRoutes';
-import authRoutes from './routes/authRoutes';
-import settings from './routes/settings.router';
-import userReqRoutes from './routes/userReqRoutes';
-import notification from './routes/notification.routes';
 
 app.use('/api/chat', chatRoutes);
 app.use('/api/call', callRoutes);
@@ -60,6 +62,8 @@ app.get('/health', (req, res) => {
 
 // Initialize WebSocket server from the first snippet
 const wsServer = new WSServer(server);
+app.use("/api/notifications", notification)
+app.use("/api/social", social)
 
 // Database connection & server start
 const startServer = async () => {

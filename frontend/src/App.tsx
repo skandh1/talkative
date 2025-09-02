@@ -14,6 +14,7 @@ import AuthPage from './pages/AuthPage';
 import RedirectIfAuthenticated from './components/RedirectIfAuhtenticated';
 import SettingsPage from './features/settings/SettingsPage';
 import { NotificationsPage } from './features/notification/NotificationPage';
+import SocialPage from './features/social/SocialPage';
 import { ChatPage } from './features/chat/ChatPage';
 import { IncomingCallModal } from './components/IncomingCallModal';
 import { ActiveCallBar } from './features/call/components/ActiveCallBar';
@@ -74,6 +75,7 @@ const App: React.FC = () => {
                       <Route path="me" element={<ProfilePage />} />
                       <Route path="search" element={<SearchPage />} />
                       <Route path="notifications" element={<NotificationsPage />} />
+                      <Route path="social" element={<SocialPage />} />
                     </Route>
 
                     {/* Fallback for unknown routes */}

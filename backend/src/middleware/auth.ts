@@ -16,11 +16,13 @@ declare global {
   }
 }
 
+
 export const authenticate = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
+
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith('Bearer ')) {
@@ -30,6 +32,7 @@ export const authenticate = async (
   const idToken = authHeader.split(' ')[1];
 
   try {
+    
     // Step 1: Verify Firebase token
     const decodedToken = await adminAuth.verifyIdToken(idToken);
 
@@ -46,7 +49,7 @@ export const authenticate = async (
     if (!user) {
       return res.status(401).json({ error: 'User not found in database' });
     }
-
+    
     // Step 3: Attach MongoDB user to request
     req.user = user.toObject(); // or just user if you prefer Mongoose doc
     next();

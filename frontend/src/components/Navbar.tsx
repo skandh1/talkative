@@ -19,7 +19,9 @@ const Navbar: React.FC = () => {
     { name: 'Explore', path: '/explore' },
     { name: 'Dashboard', path: '/dashboard' },
     { name: 'search', path: '/search' },
-    { name: "Settings", path: "/settings" }
+    { name: "Settings", path: "/settings" },
+    { name: "Social", path: "/social" },
+    // { name: "Chat", path: "/social" }
 
   ];
 

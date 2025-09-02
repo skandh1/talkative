@@ -2,83 +2,140 @@
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNotifications } from './hook/useNotifications'; // Custom hook for fetching notifications
+import { useNotifications } from './hook/useNotifications';
 import { useApi } from '@/hooks/useApi';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { formatDistanceToNow } from 'date-fns';
-// import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 
 const NotificationCard: React.FC<{ notification: any; onAction: (type: string, id: string) => void }> = ({ notification, onAction }) => {
   const queryClient = useQueryClient();
   const { request } = useApi();
 
-  // Utility to handle a single action on a notification (e.g., accept, reject, mark as read)
-  const handleAction = async (actionType: 'accept' | 'reject' | 'read', notificationId: string, relatedId?: string) => {
-    let endpoint = '';
-    let method = 'PUT';
-
-    // Determine the API endpoint based on notification type and action
-    if (actionType === 'accept' && notification.type.includes('friend_request')) {
-      endpoint = `/users/requests/friend/${relatedId}/accept`;
-    } else if (actionType === 'reject' && notification.type.includes('friend_request')) {
-      endpoint = `/users/requests/friend/${relatedId}/reject`;
-    } else if (actionType === 'accept' && notification.type.includes('follow_request')) {
-      endpoint = `/users/requests/follow/${relatedId}/accept`;
-    } else if (actionType === 'reject' && notification.type.includes('follow_request')) {
-      endpoint = `/users/requests/follow/${relatedId}/reject`;
-    } else if (actionType === 'read') {
-      endpoint = `/notifications/${notificationId}/read`;
-    }
-
-    if (endpoint) {
-      try {
-        await request(endpoint, { method });
-        onAction(actionType, notificationId); // Inform the parent component
-      } catch (err: any) {
-        toast.error(`Failed to perform action: ${err.body?.message || 'Unknown error'}`);
+  // Individual mutations for better control and error handling
+  const { mutate: acceptRequest, isPending: isAccepting } = useMutation({
+    mutationFn: async () => {
+      let endpoint = '';
+      
+      if (notification.type === 'friend_request') {
+        endpoint = `/users/requests/friend/${notification.relatedId}/accept`;
+      } else if (notification.type === 'follow_request') {
+        endpoint = `/users/requests/follow/${notification.relatedId}/accept`;
       }
-    }
-  };
+      
+      if (!endpoint) throw new Error('Invalid notification type for accept action');
+      
+      return request(endpoint, { method: 'PUT' });
+    },
+    onSuccess: () => {
+      toast.success('Request accepted!');
+      // Invalidate all related queries
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['relationship'] });
+      queryClient.invalidateQueries({ queryKey: ['followRelationship'] });
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      onAction('accept', notification._id);
+    },
+    onError: (err: any) => {
+      toast.error(`Failed to accept request: ${err.body?.message || 'Unknown error'}`);
+    },
+  });
+
+  const { mutate: rejectRequest, isPending: isRejecting } = useMutation({
+    mutationFn: async () => {
+      let endpoint = '';
+      
+      if (notification.type === 'friend_request') {
+        endpoint = `/users/requests/friend/${notification.relatedId}/reject`;
+      } else if (notification.type === 'follow_request') {
+        endpoint = `/users/requests/follow/${notification.relatedId}/reject`;
+      }
+      
+      if (!endpoint) throw new Error('Invalid notification type for reject action');
+      
+      return request(endpoint, { method: 'PUT' });
+    },
+    onSuccess: () => {
+      toast.info('Request rejected.');
+      // Invalidate all related queries
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['relationship'] });
+      queryClient.invalidateQueries({ queryKey: ['followRelationship'] });
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      onAction('reject', notification._id);
+    },
+    onError: (err: any) => {
+      toast.error(`Failed to reject request: ${err.body?.message || 'Unknown error'}`);
+    },
+  });
+
+  const { mutate: markAsRead, isPending: isMarkingRead } = useMutation({
+    mutationFn: () => request(`/notifications/${notification._id}/read`, { method: 'PUT' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      onAction('read', notification._id);
+    },
+    onError: (err: any) => {
+      toast.error(`Failed to mark as read: ${err.body?.message || 'Unknown error'}`);
+    },
+  });
+
+  // Check if this notification type supports accept/reject actions
+  const isActionableRequest = ['friend_request', 'follow_request'].includes(notification.type);
 
   return (
-    <div className={`p-4 rounded-lg shadow-md mb-4 flex justify-between items-center transition-all duration-300 ${notification.isRead ? 'bg-gray-100 dark:bg-gray-700' : 'bg-blue-50 dark:bg-gray-800'}`}>
+    <div className={`p-4 rounded-lg shadow-md mb-4 flex justify-between items-center transition-all duration-300 ${
+      notification.isRead ? 'bg-gray-100 dark:bg-gray-700' : 'bg-blue-50 dark:bg-gray-800'
+    }`}>
       <div className="flex-1">
-        <p className={`font-semibold ${notification.isRead ? 'text-gray-600 dark:text-gray-300' : 'text-gray-900 dark:text-white'}`}>
+        <p className={`font-semibold ${
+          notification.isRead ? 'text-gray-600 dark:text-gray-300' : 'text-gray-900 dark:text-white'
+        }`}>
           {notification.content}
         </p>
         <span className="text-sm text-gray-500 dark:text-gray-400">
           {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
         </span>
+        {/* Show sender info if available */}
+        {notification.sender && (
+          <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            From: {notification.sender.displayName || notification.sender.username}
+          </div>
+        )}
       </div>
       <div className="flex space-x-2 ml-4">
-        {['friend_request', 'follow_request'].includes(notification.type) && !notification.isRead && (
+        {isActionableRequest && !notification.isRead && (
           <>
             <Button
-              onClick={() => handleAction('accept', notification._id, notification.relatedId)}
+              onClick={() => acceptRequest()}
               className="bg-green-500 hover:bg-green-600 text-white"
               size="sm"
+              disabled={isAccepting}
             >
-              Accept
+              {isAccepting ? 'Accepting...' : 'Accept'}
             </Button>
             <Button
-              onClick={() => handleAction('reject', notification._id, notification.relatedId)}
+              onClick={() => rejectRequest()}
               className="bg-red-500 hover:bg-red-600 text-white"
               size="sm"
+              disabled={isRejecting}
             >
-              Reject
+              {isRejecting ? 'Rejecting...' : 'Reject'}
             </Button>
           </>
         )}
         {!notification.isRead && (
           <Button
-            onClick={() => handleAction('read', notification._id)}
+            onClick={() => markAsRead()}
             variant="outline"
             size="sm"
             className="text-gray-600 dark:text-gray-300"
+            disabled={isMarkingRead}
           >
-            Mark as Read
+            {isMarkingRead ? 'Marking...' : 'Mark as Read'}
           </Button>
         )}
       </div>
@@ -88,16 +145,15 @@ const NotificationCard: React.FC<{ notification: any; onAction: (type: string, i
 
 export const NotificationsPage: React.FC = () => {
   const { dbUser } = useAuth();
-  const { data: notifications, isLoading, isError, error } = useNotifications();
-  console.log("isLoading:", isLoading);
-  console.log("notifications data:", notifications);
+  const { data, isLoading, isError, error } = useNotifications();
   const queryClient = useQueryClient();
   const { request } = useApi();
 
   // Mutation to mark all notifications as read
-  const { mutate: markAllAsRead } = useMutation({
+  const { mutate: markAllAsRead, isPending: isMarkingAllRead } = useMutation({
     mutationFn: () => request('/notifications/read-all', { method: 'PUT' }),
     onSuccess: () => {
+      toast.success('All notifications marked as read');
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
     onError: (err: any) => {
@@ -114,14 +170,20 @@ export const NotificationsPage: React.FC = () => {
   }
 
   if (isError) {
-    return <div className="p-8 text-center text-red-500">Error fetching notifications: {error.message}</div>;
+    return <div className="p-8 text-center text-red-500">
+      Error fetching notifications: {error?.message || 'Unknown error'}
+    </div>;
   }
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  // Handle the new data structure
+  const notifications = data?.notifications || [];
+  const totalCount = data?.total || 0;
+  const hasMore = data?.hasMore || false;
+  const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
   const handleActionComplete = () => {
-    // Invalidate queries after any action to refresh the list and unread count
-    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    // This is called after any action completes
+    // The individual mutations already handle query invalidation
   };
 
   return (
@@ -129,25 +191,47 @@ export const NotificationsPage: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           Notifications ({unreadCount > 0 ? `${unreadCount} unread` : '0 unread'})
+          {totalCount > notifications.length && (
+            <span className="text-sm text-gray-500 dark:text-gray-400 block">
+              Showing {notifications.length} of {totalCount} notifications
+            </span>
+          )}
         </h1>
         {notifications.length > 0 && (
-          <Button onClick={() => markAllAsRead()} variant="secondary" disabled={unreadCount === 0}>
-            Mark All as Read
+          <Button 
+            onClick={() => markAllAsRead()} 
+            variant="secondary" 
+            disabled={unreadCount === 0 || isMarkingAllRead}
+          >
+            {isMarkingAllRead ? 'Marking All...' : 'Mark All as Read'}
           </Button>
         )}
       </div>
+      
       {notifications.length === 0 ? (
-        <div className="text-center text-gray-500 dark:text-gray-400">You have no notifications.</div>
-      ) : (
-        <div className="space-y-4">
-          {notifications.map(notification => (
-            <NotificationCard
-              key={notification._id}
-              notification={notification}
-              onAction={handleActionComplete}
-            />
-          ))}
+        <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+          You have no notifications.
         </div>
+      ) : (
+        <>
+          <div className="space-y-4">
+            {notifications.map((notification: any) => (
+              <NotificationCard
+                key={notification._id}
+                notification={notification}
+                onAction={handleActionComplete}
+              />
+            ))}
+          </div>
+          {hasMore && (
+            <div className="text-center mt-6">
+              <p className="text-gray-500 dark:text-gray-400">
+                Showing {notifications.length} of {totalCount} notifications
+              </p>
+              {/* You could add a "Load More" button here if you implement pagination */}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
