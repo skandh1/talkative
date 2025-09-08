@@ -18,6 +18,7 @@ export const useChat = () => {
     setActiveConversation,
     markMessagesAsRead,
     addConversation,
+    setMessages, // ✅ Added missing function
   } = useChatStore();
 
   const { dbUser } = useAuth(); // ✅ get current logged-in user
@@ -57,12 +58,18 @@ export const useChat = () => {
     };
   }, [addMessage, updateMessage]);
 
-  // ✅ Queries
+  // ✅ Fixed Queries with proper React Query v5 syntax and correct typing
   const conversationsQuery = useQuery({
     queryKey: ["conversations"],
-    queryFn: chatAPI.getUserConversations,
-    onSuccess: setConversations,
+    queryFn: () => chatAPI.getUserConversations(), // ✅ Wrap in arrow function with no parameters
   });
+
+  // ✅ Update conversations when query succeeds
+  useEffect(() => {
+    if (conversationsQuery.data && Array.isArray(conversationsQuery.data)) {
+      setConversations(conversationsQuery.data);
+    }
+  }, [conversationsQuery.data, setConversations]);
 
   const messagesQuery = useQuery({
     queryKey: ["messages", activeConversationId],
@@ -72,6 +79,13 @@ export const useChat = () => {
         : Promise.resolve([]),
     enabled: !!activeConversationId,
   });
+
+  // ✅ Update messages when query succeeds
+  useEffect(() => {
+    if (messagesQuery.data && Array.isArray(messagesQuery.data) && activeConversationId) {
+      setMessages(activeConversationId, messagesQuery.data);
+    }
+  }, [messagesQuery.data, activeConversationId, setMessages]);
 
   // ✅ Mutations
   const sendMessageMutation = useMutation({
@@ -86,7 +100,7 @@ export const useChat = () => {
     mutationFn: chatAPI.markRead,
     onSuccess: (_, conversationId) => {
       if (activeConversationId === conversationId && dbUser) {
-        markMessagesAsRead(conversationId, dbUser.id);
+        markMessagesAsRead(conversationId, dbUser._id);
       }
     },
   });

@@ -20,7 +20,7 @@ export class CallController {
   static async startCall(req: Request, res: Response) {
     try {
       const { calleeId } = safeParse(startCallSchema, req.body);
-      const callerId = req.userId!;
+      const callerId = req.user?._id!!;
       
       if (callerId === calleeId) {
         return res.status(400).json(createErrorResponse('INVALID_CALLEE', 'Cannot call yourself'));
@@ -36,7 +36,7 @@ export class CallController {
   static async acceptCall(req: Request, res: Response) {
     try {
       const { callId } = safeParse(callActionSchema, req.body);
-      const calleeId = req.userId!;
+      const calleeId = req.user?._id!!;
       
       const call = await CallService.acceptCall(callId, calleeId);
       res.json({ call, sessionId: callId });
@@ -48,7 +48,7 @@ export class CallController {
   static async declineCall(req: Request, res: Response) {
     try {
       const { callId } = safeParse(callActionSchema, req.body);
-      const calleeId = req.userId!;
+      const calleeId = req.user?._id!!;
       
       const call = await CallService.declineCall(callId, calleeId);
       res.json(call);
@@ -60,7 +60,7 @@ export class CallController {
   static async cancelCall(req: Request, res: Response) {
     try {
       const { callId } = safeParse(callActionSchema, req.body);
-      const callerId = req.userId!;
+      const callerId = req.user?._id!!;
       
       const call = await CallService.cancelCall(callId, callerId);
       res.json(call);
@@ -72,7 +72,7 @@ export class CallController {
   static async endCall(req: Request, res: Response) {
     try {
       const { callId, reason } = safeParse(endCallSchema, req.body);
-      const userId = req.userId!;
+      const userId = req.user?._id!!;
       
       const call = await CallService.endCall(callId, userId);
       res.json(call);

@@ -23,11 +23,12 @@ export class ChatController {
   static async createOrGetConversation(req: Request, res: Response) {
     try {
       const { peerUserId } = safeParse(createConversationSchema, req.body);
-      const userId = req.userId!;
+      const userId = req.user?._id!;
       
       if (userId === peerUserId) {
         return res.status(400).json(createErrorResponse('INVALID_PEER', 'Cannot create conversation with yourself'));
       }
+      // console.log(userId, peerUserId)
       
       const conversation = await ChatService.getOrCreate1to1(userId, peerUserId);
       res.json(conversation);
@@ -38,7 +39,7 @@ export class ChatController {
 
   static async getUserConversations(req: Request, res: Response) {
     try {
-      const userId = req.userId!;
+      const userId = req.user?._id!!;
       const limit = parseInt(req.query.limit as string) || 20;
       const cursor = req.query.cursor as string;
       
@@ -65,7 +66,7 @@ export class ChatController {
   static async sendMessage(req: Request, res: Response) {
     try {
       const { conversationId, peerUserId, text } = safeParse(sendMessageSchema, req.body);
-      const userId = req.userId!;
+      const userId = req.user?._id!!;
       
       let finalConversationId = conversationId;
       
@@ -88,7 +89,7 @@ export class ChatController {
   static async markRead(req: Request, res: Response) {
     try {
       const { conversationId } = safeParse(markReadSchema, req.body);
-      const userId = req.userId!;
+      const userId = req.user?._id!!;
       
       await ChatService.markRead(conversationId, userId);
       res.json({ success: true });

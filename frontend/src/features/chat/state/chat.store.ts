@@ -52,10 +52,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return state;
     }
 
+    // ✅ Fixed: Add new message at the END, not beginning (chronological order)
     return {
       messagesByConversation: {
         ...state.messagesByConversation,
-        [message.conversationId]: [message, ...conversationMessages]
+        [message.conversationId]: [...conversationMessages, message]
       }
     };
   }),
@@ -64,9 +65,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const newMessagesByConversation = { ...state.messagesByConversation };
     
     Object.keys(newMessagesByConversation).forEach(conversationId => {
-      newMessagesByConversation[conversationId] = newMessagesByConversation[conversationId].map(msg => 
-        msg._id === messageId ? { ...msg, ...updates } : msg
-      );
+      newMessagesByConversation[conversationId] = newMessagesByConversation[conversationId].map(msg => {
+        if (msg._id === messageId) {
+          // ✅ Fixed: Properly merge arrays instead of replacing
+          const updatedMsg = { ...msg, ...updates };
+          
+          // Merge deliveredTo array properly
+          if (updates.deliveredTo) {
+            const existingDelivered = msg.deliveredTo || [];
+            const newDelivered = updates.deliveredTo || [];
+            updatedMsg.deliveredTo = [...new Set([...existingDelivered, ...newDelivered])];
+          }
+          
+          // Merge readBy array properly
+          if (updates.readBy) {
+            const existingRead = msg.readBy || [];
+            const newRead = updates.readBy || [];
+            updatedMsg.readBy = [...new Set([...existingRead, ...newRead])];
+          }
+          
+          return updatedMsg;
+        }
+        return msg;
+      });
     });
 
     return { messagesByConversation: newMessagesByConversation };
@@ -99,4 +120,4 @@ export const useChatStore = create<ChatState>((set, get) => ({
         : conv
     )
   }))
-}));  
+}));

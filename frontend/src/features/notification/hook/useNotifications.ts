@@ -40,7 +40,7 @@ export const useNotifications = () => {
     return useQuery({
         queryKey: ['notifications'],
         queryFn: fetchNotifications,
-        refetchInterval: 15000, // Refetch every 15 seconds
+        refetchInterval: 150000, // Refetch every 150 seconds
         staleTime: 10000, // Consider data stale after 10 seconds
         retry: 3, // Retry failed requests 3 times
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff

@@ -35,7 +35,7 @@ export class ChatService {
     }
     
     return Conversation.find(query)
-      .populate('participants', 'name avatar')
+      .populate('participants', 'displayName profilePic')
       .sort({ updatedAt: -1 })
       .limit(limit);
   }

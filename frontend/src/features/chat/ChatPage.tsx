@@ -1,12 +1,13 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { ChatPane } from './components/ChatPane';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const ChatPage: React.FC = () => {
   const { conversationId } = useParams<{ conversationId: string }>();
-  
+  const { dbUser } = useAuth()
   // You would get this from your user context
-  const currentUserId = 'current-user-id'; // Replace with actual user context
+  const currentUserId = dbUser?._id; // Replace with actual user context
 
   if (!conversationId) {
     return (

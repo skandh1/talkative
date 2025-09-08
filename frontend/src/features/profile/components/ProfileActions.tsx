@@ -31,6 +31,7 @@ export const ProfileActions: React.FC<ProfileActionsProps> = ({
   const handleChat = async () => {
     try {
       const conversation = await openOrCreateConversation(userId);
+      console.log("conversation", conversation)
       navigate(`/chat/${conversation._id}`);
     } catch (error) {
       console.error('Failed to open chat:', error);
