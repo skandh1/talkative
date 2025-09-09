@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useChatStore } from "../state/chat.store.js";
 import { useChatAPI } from "../api/chat"; // ✅ updated name
 import { wsClient } from "../../../lib/ws.js";
@@ -18,7 +18,8 @@ export const useChat = () => {
     setActiveConversation,
     markMessagesAsRead,
     addConversation,
-    setMessages, // ✅ Added missing function
+    setMessages,
+    prependMessages, // ✅ Added for pagination
   } = useChatStore();
 
   const { dbUser } = useAuth(); // ✅ get current logged-in user
@@ -71,19 +72,28 @@ export const useChat = () => {
     }
   }, [conversationsQuery.data, setConversations]);
 
-  const messagesQuery = useQuery({
+  // ✅ Changed to useInfiniteQuery for pagination
+  const messagesQuery = useInfiniteQuery({
     queryKey: ["messages", activeConversationId],
-    queryFn: () =>
+    queryFn: ({ pageParam }) =>
       activeConversationId
-        ? chatAPI.getMessages(activeConversationId)
+        ? chatAPI.getMessages(activeConversationId, 50, pageParam)
         : Promise.resolve([]),
     enabled: !!activeConversationId,
+    getNextPageParam: (lastPage) => {
+      // Use the oldest message's createdAt as the cursor for next page
+      if (lastPage.length === 0) return undefined;
+      return lastPage[lastPage.length - 1].createdAt;
+    },
+    initialPageParam: undefined as string | undefined,
   });
 
-  // ✅ Update messages when query succeeds
+  // ✅ Update messages when query succeeds - handle infinite query data
   useEffect(() => {
-    if (messagesQuery.data && Array.isArray(messagesQuery.data) && activeConversationId) {
-      setMessages(activeConversationId, messagesQuery.data);
+    if (messagesQuery.data && activeConversationId) {
+      // Flatten all pages and set messages
+      const allMessages = messagesQuery.data.pages.flat();
+      setMessages(activeConversationId, allMessages);
     }
   }, [messagesQuery.data, activeConversationId, setMessages]);
 
@@ -123,6 +133,13 @@ export const useChat = () => {
     return sendMessageMutation.mutate({ text, conversationId, peerUserId });
   };
 
+  // ✅ Load more messages function
+  const loadMoreMessages = () => {
+    if (messagesQuery.hasNextPage && !messagesQuery.isFetchingNextPage) {
+      messagesQuery.fetchNextPage();
+    }
+  };
+
   return {
     conversations,
     messages: activeConversationId
@@ -130,6 +147,9 @@ export const useChat = () => {
       : [],
     activeConversationId,
     isLoading: conversationsQuery.isLoading || messagesQuery.isLoading,
+    hasMoreMessages: messagesQuery.hasNextPage,
+    isLoadingMore: messagesQuery.isFetchingNextPage,
+    loadMoreMessages,
     openOrCreateConversation,
     sendMessage,
     markRead: markReadMutation.mutate,

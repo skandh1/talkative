@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { Send, Check, CheckCheck, MessageSquareText, Loader2 } from 'lucide-react';
 
 // --- Imports from your application structure ---
@@ -14,10 +14,21 @@ interface ChatPaneProps {
 }
 
 export const ChatPane: React.FC<ChatPaneProps> = ({ conversationId, currentUserId }) => {
-  // ✅ Now using your real useChat hook
-  const { messages, sendMessage, markRead, setActiveConversation, isLoading } = useChat();
+  // ✅ Now using your real useChat hook with pagination support
+  const { 
+    messages, 
+    sendMessage, 
+    markRead, 
+    setActiveConversation, 
+    isLoading,
+    hasMoreMessages,
+    isLoadingMore,
+    loadMoreMessages
+  } = useChat();
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [isNearBottom, setIsNearBottom] = useState(true);
   console.log("messages", messages)
 
   // Set active conversation when the conversationId prop changes
@@ -27,13 +38,26 @@ export const ChatPane: React.FC<ChatPaneProps> = ({ conversationId, currentUserI
     }
   }, [conversationId, setActiveConversation]);
 
-  // Scroll to the bottom when new messages arrive
+  // ✅ Scroll to bottom logic - only when user is near bottom
   useEffect(() => {
-    // Added a small timeout to allow the DOM to update before scrolling
-    setTimeout(() => {
+    if (isNearBottom) {
+      setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
-  }, [messages]);
+      }, 100);
+    }
+  }, [messages, isNearBottom]);
+
+  // ✅ Track if user is near bottom of chat
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const nearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    setIsNearBottom(nearBottom);
+
+    // ✅ Load more messages when scrolled to top
+    if (scrollTop === 0 && hasMoreMessages && !isLoadingMore) {
+      loadMoreMessages();
+    }
+  }, [hasMoreMessages, isLoadingMore, loadMoreMessages]);
 
   // Mark messages as read when the conversation is viewed
   useEffect(() => {
@@ -92,7 +116,18 @@ export const ChatPane: React.FC<ChatPaneProps> = ({ conversationId, currentUserI
 
   return (
     <div className="flex flex-col h-full bg-slate-50">
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div 
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-6 space-y-4"
+        onScroll={handleScroll}
+      >
+        {/* ✅ Loading indicator for loading more messages */}
+        {isLoadingMore && (
+          <div className="flex justify-center py-2">
+            <Loader2 className="w-6 h-6 text-sky-500 animate-spin" />
+          </div>
+        )}
+        
         {/* ✅ Added a loading state for better UX during initial message fetch */}
         {isLoading ? (
             <div className="flex items-center justify-center h-full">

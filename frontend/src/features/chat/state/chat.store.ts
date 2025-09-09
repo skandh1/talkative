@@ -12,6 +12,7 @@ interface ChatState {
   addConversation: (conversation: Conversation) => void;
   updateConversation: (conversationId: string, updates: Partial<Conversation>) => void;
   setMessages: (conversationId: string, messages: Message[]) => void;
+  prependMessages: (conversationId: string, messages: Message[]) => void; // ✅ Added for pagination
   addMessage: (message: Message) => void;
   updateMessage: (messageId: string, updates: Partial<Message>) => void;
   setActiveConversation: (conversationId: string | null) => void;
@@ -43,6 +44,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
       [conversationId]: messages
     }
   })),
+
+  // ✅ Added prependMessages for pagination
+  prependMessages: (conversationId, messages) => set((state) => {
+    const existingMessages = state.messagesByConversation[conversationId] || [];
+    const newMessages = messages.filter(msg => 
+      !existingMessages.some(existing => existing._id === msg._id)
+    );
+    
+    return {
+      messagesByConversation: {
+        ...state.messagesByConversation,
+        [conversationId]: [...newMessages, ...existingMessages]
+      }
+    };
+  }),
 
   addMessage: (message) => set((state) => {
     const conversationMessages = state.messagesByConversation[message.conversationId] || [];
