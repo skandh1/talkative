@@ -63,29 +63,66 @@ export class ChatController {
     }
   }
 
-  static async sendMessage(req: Request, res: Response) {
-    try {
-      const { conversationId, peerUserId, text } = safeParse(sendMessageSchema, req.body);
-      const userId = req.user?._id!!;
+  // static async sendMessage(req: Request, res: Response) {
+  //   try {
+  //     const { conversationId, peerUserId, text } = safeParse(sendMessageSchema, req.body);
+  //     const userId = req.user?._id!!;
+  //     // console.log({ conversationId, peerUserId, text, userId });
       
-      let finalConversationId = conversationId;
+  //     let finalConversationId = conversationId;
       
-      if (!conversationId && peerUserId) {
-        const conversation = await ChatService.getOrCreate1to1(userId, peerUserId);
-        finalConversationId = conversation._id.toString();
-      }
+  //     if (!conversationId && peerUserId) {
+  //       const conversation = await ChatService.getOrCreate1to1(userId, peerUserId);
+  //       finalConversationId = conversation._id.toString();
+  //     }
       
-      if (!finalConversationId) {
-        return res.status(400).json(createErrorResponse('INVALID_CONVERSATION', 'Invalid conversation'));
-      }
+  //     if (!finalConversationId) {
+  //       return res.status(400).json(createErrorResponse('INVALID_CONVERSATION', 'Invalid conversation'));
+  //     }
       
-      const message = await ChatService.sendMessage(userId, finalConversationId, text);
-      res.json(message);
-    } catch (error) {
-      res.status(500).json(createErrorResponse('SEND_MESSAGE_ERROR', (error as Error).message));
-    }
-  }
+  //     const message = await ChatService.sendMessage(userId, finalConversationId, text);
+  //     res.json(message);
+  //   } catch (error) {
+  //     res.status(500).json(createErrorResponse('SEND_MESSAGE_ERROR', (error as Error).message));
+  //   }
+  // }
 
+  static async sendMessage(req: Request, res: Response) {
+  try {
+    const { conversationId, peerUserId, text } = safeParse(sendMessageSchema, req.body);
+    const userId = req.user?._id!!;
+    
+    let finalConversationId = conversationId;
+    
+    if (!conversationId && peerUserId) {
+      const conversation = await ChatService.getOrCreate1to1(userId, peerUserId);
+      finalConversationId = conversation._id.toString();
+    }
+    
+    if (!finalConversationId) {
+      return res.status(400).json(createErrorResponse('INVALID_CONVERSATION', 'Invalid conversation'));
+    }
+    
+    // ✅ Send message and get conversation data
+    const { message, conversation } = await ChatService.sendMessage(userId, finalConversationId, text);
+    
+    // ✅ Broadcast to other participants via WebSocket
+    const wsServer = req.app.get('wsServer'); // Make sure wsServer is attached to app
+    if (wsServer) {
+      conversation.participants.forEach((participantId) => {
+        const participantIdStr = participantId.toString();
+        if (participantIdStr !== userId) {
+          console.log('[Controller] Broadcasting message to participant:', participantIdStr);
+          wsServer.broadcastToUser(participantIdStr, 'chat.message', message);
+        }
+      });
+    }
+    
+    res.json(message);
+  } catch (error) {
+    res.status(500).json(createErrorResponse('SEND_MESSAGE_ERROR', (error as Error).message));
+  }
+}
   static async markRead(req: Request, res: Response) {
     try {
       const { conversationId } = safeParse(markReadSchema, req.body);

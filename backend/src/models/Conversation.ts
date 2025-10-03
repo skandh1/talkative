@@ -37,14 +37,13 @@ const conversationSchema = new Schema<IConversation>({
 });
 
 // Ensure unique pair of participants
-conversationSchema.index(
-  { participants: 1 },
-  { 
-    unique: true,
-    partialFilterExpression: { 'participants.1': { $exists: true } }
-  }
-);
+  // conversationSchema.index(
+  //   { participants: 1 },
+  //   {
+  //     partialFilterExpression: { 'participants.1': { $exists: true } }
+  //   }
+  // );
 
-conversationSchema.index({ 'participants': 1, 'updatedAt': -1 });
+  // conversationSchema.index({ 'participants': 1, 'updatedAt': -1 });
 
 export const Conversation = mongoose.model<IConversation>('Conversation', conversationSchema);

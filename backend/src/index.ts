@@ -64,7 +64,7 @@ app.get('/health', (req, res) => {
 const wsServer = new WSServer(server);
 app.use("/api/notifications", notification)
 app.use("/api/social", social)
-
+app.set('wsServer', wsServer);
 // Database connection & server start
 const startServer = async () => {
   try {
@@ -75,6 +75,7 @@ const startServer = async () => {
     // Start the HTTP/WebSocket server
     server.listen(process.env.PORT || 5000, () => {
       console.log(`🚀 Server running on port ${process.env.PORT || 5000}`);
+      console.log("")
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
