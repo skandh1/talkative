@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -6,9 +6,31 @@ import {
   type UpdateProfileFormData,
 } from '../validation/profileSchema';
 import { type User as UserProfile } from '../../../types/user';
-import { Input } from '../../../components/ui/customUI/Input';
-// import { Textarea } from '../../../components/ui/customUI/Textarea'; // If you have it
-// import { Select } from '../../../components/ui/customUI/Select';     // If you have it
+import { Button } from "../../../components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "../../../components/ui/form";
+import { Input } from "../../../components/ui/input";
+import { Textarea } from "../../../components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../../components/ui/select";
+import { Label } from "../../../components/ui/label";
+import { toast } from 'react-toastify';
+import { useDebounce } from 'use-debounce';
+import { useAuth } from '../../../contexts/AuthContext';
+
+// IMPORTANT: Replace this with your actual ImgBB API key from your .env file
+const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY;
 
 interface ProfileFormProps {
   user: UserProfile;
@@ -23,15 +45,17 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
   onCancel,
   isUpdating,
 }) => {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<UpdateProfileFormData>({
+  const [profilePicFile, setProfilePicFile] = useState<File | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [isUsernameAvailable, setIsUsernameAvailable] = useState(true);
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const { checkUsername } = useAuth();
+
+  const form = useForm<UpdateProfileFormData>({
     resolver: zodResolver(updateProfileSchema),
     defaultValues: {
       username: user.username || '',
-      profilePic: user.profilePic || '',
+      displayName: user.displayName || '', // Add displayName to default values
       about: user.about || '',
       age: user.age ?? undefined,
       gender: user.gender ?? 'prefer_not_to_say',
@@ -39,13 +63,90 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
     },
   });
 
-  const handleFormSubmit: SubmitHandler<UpdateProfileFormData> = (data) => {
+  const currentUsername = form.watch('username');
+  const [debouncedUsername] = useDebounce(currentUsername, 500);
+
+  useEffect(() => {
+    // Only check if the username has changed
+    if (debouncedUsername && debouncedUsername !== user.username) {
+      const validateUsername = async () => {
+        setIsCheckingUsername(true);
+        const available = await checkUsername(debouncedUsername);
+        setIsUsernameAvailable(available);
+        setIsCheckingUsername(false);
+        if (!available) {
+          toast.error('This username is already taken.');
+        }
+      };
+      validateUsername();
+    } else {
+      setIsUsernameAvailable(true);
+    }
+  }, [debouncedUsername, user.username, checkUsername]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setProfilePicFile(e.target.files[0]);
+    }
+  };
+
+  const uploadImageToImgBB = async (imageFile: File): Promise<string> => {
+    setUploadingImage(true);
+    const form = new FormData();
+    form.append('image', imageFile);
+
+    try {
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+        method: 'POST',
+        body: form,
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setUploadingImage(false);
+        return data.data.url;
+      } else {
+        setUploadingImage(false);
+        // Show a toast error with the API's error message
+        toast.error(data.error.message || 'Image upload failed.');
+        throw new Error(data.error.message || 'Image upload failed.');
+      }
+    } catch (error) {
+      setUploadingImage(false);
+      console.error('Error uploading image to ImgBB:', error);
+      // Show a toast error for network or unexpected issues
+      toast.error('An error occurred during image upload. Please try again.');
+      throw error;
+    }
+  };
+
+  const handleFormSubmit: SubmitHandler<UpdateProfileFormData> = async (data) => {
+    // Before submitting, check again for username availability.
+    if (data.username !== user.username) {
+      if (!isUsernameAvailable) {
+        toast.error('The selected username is already taken. Please choose another one.');
+        return;
+      }
+    }
+
+    let newProfilePicUrl = user.profilePic;
+
+    if (profilePicFile) {
+      try {
+        newProfilePicUrl = await uploadImageToImgBB(profilePicFile);
+      } catch (error) {
+        // The error is already handled by toast, so we just return here
+        return;
+      }
+    }
+
     const topicsArray = data.topics
       ? data.topics.split(',').map((t) => t.trim()).filter(Boolean)
       : [];
 
     const payload: Partial<UserProfile> = {
       ...data,
+      profilePic: newProfilePicUrl,
       topics: topicsArray,
     };
 
@@ -53,61 +154,156 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <Input
-          label="Username"
-          {...register('username')}
-          error={errors.username?.message}
-        />
-        <Input
-          label="Age"
-          type="number"
-          {...register('age', { valueAsNumber: true })}
-          error={errors.age?.message}
-        />
-      </div>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+        {/* Profile Picture and Username section */}
+        <div className="flex flex-col items-center gap-4 border-b border-gray-200 dark:border-gray-700 pb-6">
+          <Label htmlFor="profilePic" className="cursor-pointer group relative block">
+            <img
+              src={
+                profilePicFile
+                  ? URL.createObjectURL(profilePicFile)
+                  : user.profilePic || "https://www.gravatar.com/avatar/?d=mp"
+              }
+              alt="Profile Preview"
+              className="w-32 h-32 rounded-full object-cover ring-4 ring-indigo-500/50 transition-all group-hover:ring-indigo-500"
+            />
+            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+              <svg xmlns="http://www.w3.org/2003/svg" className="h-8 w-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+            </div>
+          </Label>
+          <input
+            type="file"
+            id="profilePic"
+            name="profilePic"
+            onChange={handleFileChange}
+            className="hidden"
+            accept="image/*"
+          />
+          <FormField
+            control={form.control}
+            name="displayName"
+            render={({ field }) => (
+              <FormItem className="w-full max-w-xs">
+                <FormLabel>Display Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="Your display name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="username"
+            render={({ field }) => (
+              <FormItem className="w-full max-w-xs">
+                <FormLabel>Username</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Your unique username"
+                    {...field}
+                    className={`${!isUsernameAvailable ? 'border-red-500' : ''}`}
+                  />
+                </FormControl>
+                {!isUsernameAvailable && (
+                  <p className="text-sm text-red-500">
+                    This username is not available.
+                  </p>
+                )}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
-      <Input
-        label="Profile Picture URL"
-        {...register('profilePic')}
-        error={errors.profilePic?.message}
-      />
+        {/* Profile Details section */}
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="age"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Age</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="Age" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="gender"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Gender</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <FormField
+            control={form.control}
+            name="about"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>About Me</FormLabel>
+                <FormControl>
+                  <Textarea placeholder="Tell us about yourself..." {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="topics"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Topics (comma-separated)</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., react, nodejs, gaming" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
-      {/* If you have a Textarea component */}
-      {/* <Textarea label="About Me" {...register('about')} error={errors.about?.message} /> */}
-
-      {/* If you have a Select component */}
-      {/* <Select label="Gender" {...register('gender')} error={errors.gender?.message}>
-        <option value="male">Male</option>
-        <option value="female">Female</option>
-        <option value="other">Other</option>
-        <option value="prefer_not_to_say">Prefer not to say</option>
-      </Select> */}
-
-      <Input
-        label="Topics (comma-separated)"
-        {...register('topics')}
-        error={errors.topics?.message}
-        placeholder="e.g., react, nodejs, gaming"
-      />
-
-      <div className="flex items-center justify-end space-x-4 pt-4">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={isUpdating}
-          className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
-        >
-          {isUpdating ? 'Saving...' : 'Save Changes'}
-        </button>
-      </div>
-    </form>
+        <div className="flex items-center justify-end space-x-4 pt-4">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onCancel}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={isUpdating || uploadingImage || isCheckingUsername || !isUsernameAvailable}
+          >
+            {isUpdating || uploadingImage ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 };

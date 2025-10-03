@@ -1,21 +1,28 @@
 import React from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, Coins, User } from 'lucide-react';
-import ThemeToggleButton from './themeToggleButton';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {  Coins, User } from 'lucide-react';
+import ThemeToggleButton from './ThemeToggleButton';
 import { useAuth } from '@/contexts/AuthContext';
-import { auth } from '@/firebase/firebase';
+import { auth, db } from '@/firebase/firebase';
+import { ref, serverTimestamp, set } from 'firebase/database';
+import { useUnreadCount } from '@/features/notification/hook/useNotifications';
 
 const Navbar: React.FC = () => {
-
-  const { currentUser } = useAuth();
+  const { currentUser, dbUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const unreadCount = useUnreadCount();
 
   const navItems = [
     { name: 'Home', path: '/home' },
     { name: 'Clubs', path: '/clubs' },
     { name: 'Explore', path: '/explore' },
     { name: 'Dashboard', path: '/dashboard' },
+    { name: 'search', path: '/search' },
+    { name: "Settings", path: "/settings" },
+    { name: "Social", path: "/social" },
+    // { name: "Chat", path: "/social" }
+
   ];
 
   const isActive = (path: string) => {
@@ -24,15 +31,21 @@ const Navbar: React.FC = () => {
 
   const handleLogout = async () => {
     try {
+      if (dbUser) {
+        const userStatusDatabaseRef = ref(db, '/status/' + dbUser.uid);
+        await set(userStatusDatabaseRef, { isOnline: false, lastActive: serverTimestamp() });
+      }
       await auth.signOut();
-      navigate('/login');
+      navigate('/');
     } catch (error) {
       console.error('Logout error:', error);
     }
   };
 
-  const handelProfileButtonClick = () => {
-    navigate('/profile');
+  const handleProfileButtonClick = () => {
+    if (dbUser) {
+      navigate(`/profile/${dbUser.username}`);
+    }
   };
 
   return (
@@ -65,31 +78,35 @@ const Navbar: React.FC = () => {
         {/* Right side - User info and Theme Toggle */}
 
         <div className="flex items-center space-x-4">
-          {currentUser && (
+          {dbUser && (
             <>
               <div className="flex items-center space-x-2 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300 px-3 py-1 rounded-full">
                 <Coins className="w-4 h-4" />
-                <span className="text-sm font-medium">1,250</span>
+                <span className="text-sm font-medium">{dbUser.coins}</span>
               </div>
 
-              <button className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  2
-                </span>
-              </button>
+              <div className="relative">
+                <Link to="/notifications" className="p-2 rounded-full hover:bg-gray-700">
+                  🔔
+                </Link>
+                {unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
+                    {unreadCount}
+                  </span>
+                )}
+              </div>
 
-              <button className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 rounded-full px-3 py-2" onClick={handelProfileButtonClick}>
+              <button className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 rounded-full px-3 py-2" onClick={handleProfileButtonClick}>
                 <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Me</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{dbUser.username}</span>
               </button>
 
               <button
-              onClick={handleLogout}
-              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-            >
-              Logout
-            </button>
+                onClick={handleLogout}
+                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+              >
+                Logout
+              </button>
             </>
           )}
 

@@ -26,6 +26,8 @@ export const updateProfileSchema = z.object({
 
   // For the form, we'll handle topics as a single string
   topics: z.string().optional(),
+
+  displayName: z.string()
 });
 
 export type UpdateProfileFormData = z.infer<typeof updateProfileSchema>;

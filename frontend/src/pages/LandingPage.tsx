@@ -1,6 +1,6 @@
 import { Mic, Globe, Users, Zap, Star, Play } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import GoogleLoginButton from '../components/GoogleLoginButton';
+import { Button, buttonVariants } from "@/components/ui/button"
+// import GoogleLoginButton from '../components/GoogleLoginButton';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,6 +19,10 @@ export default function LandingPage() {
     // Navigate to your desired page after login, e.g., '/explore' or '/dashboard'
     navigate('/explore');
   };
+
+  const onAuthButtonClick = () => {
+    navigate("/auth")
+  }
 
   return (
     <div className={`min-h-screen transition-colors duration-300`}>
@@ -67,7 +71,9 @@ export default function LandingPage() {
                 </Button>
               ) : (
                 // If user is not logged in, show the Google Login button
-                <GoogleLoginButton />
+                <Button onClick={onAuthButtonClick} size="lg">
+                  <Zap className="mr-2 h-5 w-5" /> Explore Now
+                </Button>
               )}
               <Button
                 variant="outline"
@@ -191,7 +197,9 @@ export default function LandingPage() {
               Your next meaningful conversation is just one swipe away. Join millions discovering the world through
               voice.
             </p>
-            <GoogleLoginButton />
+            <Button onClick={onAuthButtonClick} size="lg">
+              <Zap className="mr-2 h-5 w-5" /> Explore Now
+            </Button>
           </div>
         </section>
 
